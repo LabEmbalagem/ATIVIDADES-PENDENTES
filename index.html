@@ -375,13 +375,13 @@
       <label for="currentUser">Usuário Ativo:</label>
       <select id="currentUser" onchange="updateUserPermissions()">
         <!-- Autorizados a Excluir -->
-        <option value="supervisor" data-can-delete="true">Supervisor (Pode Excluir)</option>
-        <option value="senior1" data-can-delete="true">Inspetor Sênior 1 (Pode Excluir)</option>
-        <option value="senior2" data-can-delete="true">Inspetor Sênior 2 (Pode Excluir)</option>
+        <option value="supervisor" data-can-delete="true">Supervisor Dimas</option>
+        <option value="senior1" data-can-delete="true">Cledison Sênior 1 </option>
+        <option value="senior2" data-can-delete="true">Shaienne Sênior 2 </option>
         <!-- Apenas Leitura / Registro -->
-        <option value="inspetor1" data-can-delete="false">Inspetor 1 (Apenas Registra/Conclui)</option>
-        <option value="inspetor2" data-can-delete="false">Inspetor 2 (Apenas Registra/Conclui)</option>
-        <option value="inspetor3" data-can-delete="false">Inspetor 3 (Apenas Registra/Conclui)</option>
+        <option value="inspetor1" data-can-delete="false">Raimundo Inspetor 1 (Apenas Registra/Conclui)</option>
+        <option value="inspetor2" data-can-delete="false">Marciane Inspetor 2 (Apenas Registra/Conclui)</option>
+        <option value="inspetor3" data-can-delete="false">Paulo Inspetor 3 (Apenas Registra/Conclui)</option>
       </select>
       <span id="permissionStatus" class="badge"></span>
     </div>
@@ -441,8 +441,8 @@
             <input type="text" id="taskName" placeholder="Ex: ROT 2L CC MENOS ACUCAR" required>
           </div>
           <div class="form-group flex-1">
-            <label for="taskArea">Bancada / Equipamento / Local</label>
-            <input type="text" id="taskArea" placeholder="Ex: Linha 01 / Balança Analítica" required>
+            <label for="taskArea">Responsável</label>
+            <input type="text" id="taskArea" placeholder="Ex: Inspetor" required>
           </div>
           <div class="form-group flex-1">
             <label for="taskNF">Nota Fiscal (NF)</label>
