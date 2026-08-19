@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Qualidade - Rotinas de Laboratório</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #eef2f5;
+      color: #333;
+    }
+
+    /* BARRA SUPERIOR */
+    .top-bar {
+      background-color: #1a365d;
+      color: #ffffff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 30px;
+    }
+
+    .logo-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 6px 16px;
+      border-radius: 6px;
+    }
+
+    .user-control select {
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: none;
+      font-weight: bold;
+      outline: none;
+    }
+
+    .badge {
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .can-delete { background-color: #2e7d32; }
+    .cannot-delete { background-color: #d32f2f; }
+
+    /* CONTAINER PRINCIPAL */
+    .main-container {
+      max-width: 1300px;
+      margin: 20px auto;
+      padding: 0 20px;
+    }
+
+    /* CARDS DO DASHBOARD */
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: #fff;
+      padding: 18px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      border-left: 6px solid #ccc;
+    }
+
+    .card-orange { border-left-color: #dd6b20; }
+    .card-red { border-left-color: #e53e3e; }
+    .card-green { border-left-color: #38a169; }
+    .card-blue { border-left-color: #3182ce; }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: bold;
+      color: #718096;
+      text-transform: uppercase;
+    }
+
+    .card-value {
+      font-size: 26px;
+      font-weight: bold;
+      color: #2d3748;
+    }
+
+    /* ABAS DE NAVEGAÇÃO */
+    .tabs-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      background: #e2e8f0;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #4a5568;
+      transition: all 0.2s;
+    }
+
+    .tab-btn.active, .tab-btn:hover {
+      background: #cbd5e0;
+      color: #1a202c;
+    }
+
+    /* CARDS DE FORMULÁRIO E TABELA */
+    .form-card, .table-card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+    }
+
+    .form-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #1a365d;
+      margin-bottom: 15px;
+      border-bottom: 1px solid #edf2f7;
+      padding-bottom: 10px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+
+    .flex-1 { flex: 1; min-width: 200px; }
+    .flex-2 { flex: 2; min-width: 300px; }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #4a5568;
+    }
+
+    .form-group input {
+      padding: 10px;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .btn-save {
+      background-color: #2b6cb0;
+      color: white;
+      border: none;
+      padding: 10px 24px;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn-save:hover { background-color: #2c5282; }
+
+    /* TABELA DE REGISTROS */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 14px;
+    }
+
+    th {
+      background-color: #f7fafc;
+      color: #4a5568;
+    }
+
+    .btn-action {
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 12px;
+      margin-right: 5px;
+      color: white;
+    }
+
+    .btn-done { background-color: #38a169; }
+    .btn-reopen { background-color: #dd6b20; }
+    .btn-delete { background-color: #e53e3e; }
+
+    .btn-delete:disabled {
+      background-color: #cbd5e0;
+      cursor: not-allowed;
+    }
+
+    .status-badge {
+      font-weight: bold;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .status-pending { background-color: #feebc8; color: #c05621; }
+    .status-completed { background-color: #c6f6d5; color: #22543d; }
+  </style>
+</head>
+<body>
+
+  <!-- CABEÇALHO COM SELEÇÃO DE USUÁRIO -->
+  <header class="top-bar">
+    <div class="logo-title">
+      <span style="font-size: 24px;">🔬</span>
+      <h2>Controle de Qualidade - Rotinas de Laboratório</h2>
+    </div>
+    <div class="user-control">
+      <label for="currentUser">Usuário Ativo:</label>
+      <select id="currentUser" onchange="updateUserPermissions()">
+        <!-- Autorizados a Excluir -->
+        <option value="supervisor" data-can-delete="true">Supervisor (Pode Excluir)</option>
+        <option value="senior1" data-can-delete="true">Inspetor Sênior 1 (Pode Excluir)</option>
+        <option value="senior2" data-can-delete="true">Inspetor Sênior 2 (Pode Excluir)</option>
+        <!-- Apenas Leitura / Registro -->
+        <option value="inspetor1" data-can-delete="false">Inspetor 1 (Apenas Registra/Conclui)</option>
+        <option value="inspetor2" data-can-delete="false">Inspetor 2 (Apenas Registra/Conclui)</option>
+        <option value="inspetor3" data-can-delete="false">Inspetor 3 (Apenas Registra/Conclui)</option>
+      </select>
+      <span id="permissionStatus" class="badge"></span>
+    </div>
+  </header>
+
+  <div class="main-container">
+
+    <!-- DASHBOARD DE CONTADORES -->
+    <div class="dashboard-cards">
+      <div class="card card-orange">
+        <span class="card-title">TOTAL PENDÊNCIAS</span>
+        <span class="card-value" id="totalPendencias">0</span>
+      </div>
+      <div class="card card-red">
+        <span class="card-title">MP NÃO CONFORME</span>
+        <span class="card-value" id="totalSegregados">0</span>
+      </div>
+      <div class="card card-green">
+        <span class="card-title">ITENS CONCLUÍDOS</span>
+        <span class="card-value" id="totalValidados">0</span>
+      </div>
+      <div class="card card-blue">
+        <span class="card-title">TOTAL REGISTROS</span>
+        <span class="card-value" id="totalHoje">0</span>
+      </div>
+    </div>
+
+    <!-- ABAS DE NAVEGAÇÃO -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="switchTab('Rótulos', this)">🏷️ Rótulos</button>
+      <button class="tab-btn" onclick="switchTab('Pré-formas', this)">🍼 Pré-formas</button>
+      <button class="tab-btn" onclick="switchTab('Material Auxiliar', this)">📦 Material Auxiliar</button>
+      <button class="tab-btn" onclick="switchTab('MP Não Conforme', this)">🚨 MP Não Conforme</button>
+    </div>
+
+    <!-- FORMULÁRIO DE CADASTRO -->
+    <div class="form-card">
+      <div class="form-header">
+        <h3>➕ Cadastrar Novo Lote / Entrada</h3>
+        <span>Aba: <strong id="activeTabName">Rótulos</strong></span>
+      </div>
+      
+      <form id="routineForm" onsubmit="addRoutine(event)">
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label for="taskName">Produto / Material / Atividade</label>
+            <input type="text" id="taskName" placeholder="Ex: ROT 2L CC MENOS ACUCAR" required>
+          </div>
+          <div class="form-group flex-1">
+            <label for="taskArea">Bancada / Equipamento / Local</label>
+            <input type="text" id="taskArea" placeholder="Ex: Linha 01 / Balança Analítica" required>
+          </div>
+          <div class="form-group flex-1">
+            <label for="taskNF">Nota Fiscal (NF)</label>
+            <input type="text" id="taskNF" placeholder="Ex: 72484">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="taskObs">Observações / Pendência Inicial</label>
+            <input type="text" id="taskObs" placeholder="Ex: Produto Segregado / Falta laudo e romaneio">
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-save">➕ Salvar Registro</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- TABELA DE RESULTADOS -->
+    <div class="table-card">
+      <h3>Registros Cadastrados</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Material / Atividade</th>
+            <th>Bancada / Local</th>
+            <th>NF</th>
+            <th>Observações</th>
+            <th>Responsável</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="routineList">
+          <!-- Linhas renderizadas via JS -->
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+<script>
+  let routines = JSON.parse(localStorage.getItem('lab_routines')) || [];
+  let currentTab = 'Rótulos';
+
+  function updateUserPermissions() {
+    const select = document.getElementById('currentUser');
+    const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
+    
+    const badge = document.getElementById('permissionStatus');
+    if (canDelete) {
+      badge.textContent = "PODE EXCLUIR";
+      badge.className = "badge can-delete";
+    } else {
+      badge.textContent = "APENAS LEITURA";
+      badge.className = "badge cannot-delete";
+    }
+
+    renderRoutines();
+  }
+
+  function switchTab(tabName, btn) {
+    currentTab = tabName;
+    document.getElementById('activeTabName').innerText = tabName;
+    
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    renderRoutines();
+  }
+
+  function addRoutine(e) {
+    e.preventDefault();
+    const taskName = document.getElementById('taskName').value;
+    const taskArea = document.getElementById('taskArea').value;
+    const taskNF = document.getElementById('taskNF').value;
+    const taskObs = document.getElementById('taskObs').value;
+    
+    const userSelect = document.getElementById('currentUser');
+    const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+
+    const newRoutine = {
+      id: Date.now(),
+      tab: currentTab,
+      title: taskName,
+      area: taskArea,
+      nf: taskNF || '-',
+      obs: taskObs || '-',
+      createdBy: userName,
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      status: 'pendente'
+    };
+
+    routines.unshift(newRoutine);
+    saveAndRender();
+    
+    document.getElementById('taskName').value = '';
+    document.getElementById('taskArea').value = '';
+    document.getElementById('taskNF').value = '';
+    document.getElementById('taskObs').value = '';
+  }
+
+  function toggleStatus(id) {
+    routines = routines.map(item => {
+      if (item.id === id) {
+        item.status = item.status === 'pendente' ? 'concluido' : 'pendente';
+      }
+      return item;
+    });
+    saveAndRender();
+  }
+
+  function deleteRoutine(id) {
+    const select = document.getElementById('currentUser');
+    const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
+
+    if (!canDelete) {
+      alert("Acesso Negado: Seu perfil não tem permissão para excluir registros.");
+      return;
+    }
+
+    if (confirm("Tem certeza que deseja apagar este registro?")) {
+      routines = routines.filter(item => item.id !== id);
+      saveAndRender();
+    }
+  }
+
+  function saveAndRender() {
+    localStorage.setItem('lab_routines', JSON.stringify(routines));
+    updateDashboard();
+    renderRoutines();
+  }
+
+  function updateDashboard() {
+    document.getElementById('totalPendencias').innerText = routines.filter(r => r.status === 'pendente').length;
+    document.getElementById('totalSegregados').innerText = routines.filter(r => r.tab === 'MP Não Conforme').length;
+    document.getElementById('totalValidados').innerText = routines.filter(r => r.status === 'concluido').length;
+    document.getElementById('totalHoje').innerText = routines.length;
+  }
+
+  function renderRoutines() {
+    const listContainer = document.getElementById('routineList');
+    const select = document.getElementById('currentUser');
+    const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
+
+    const filtered = routines.filter(r => r.tab === currentTab);
+
+    if (filtered.length === 0) {
+      listContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #888;">Nenhum registro cadastrado nesta aba.</td></tr>';
+      return;
+    }
+
+    listContainer.innerHTML = filtered.map(item => `
+      <tr>
+        <td><strong>${item.title}</strong></td>
+        <td>${item.area}</td>
+        <td>${item.nf}</td>
+        <td>${item.obs}</td>
+        <td>${item.createdBy} <br><small style="color:#718096;">${item.createdAt}</small></td>
+        <td>
+          <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
+            ${item.status === 'concluido' ? 'Concluído' : 'Pendente'}
+          </span>
+        </td>
+        <td>
+          <button class="btn-action ${item.status === 'concluido' ? 'btn-reopen' : 'btn-done'}" onclick="toggleStatus(${item.id})">
+            ${item.status === 'concluido' ? 'Reabrir' : 'Concluir'}
+          </button>
+          <button class="btn-action btn-delete" ${canDelete ? '' : 'disabled'} onclick="deleteRoutine(${item.id})">
+            Excluir
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Inicialização
+  updateUserPermissions();
+  updateDashboard();
+</script>
+
+</body>
+</html>
