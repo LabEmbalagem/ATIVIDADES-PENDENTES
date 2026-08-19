@@ -129,6 +129,16 @@
       color: #1a202c;
     }
 
+    .tab-btn.tab-all-pending {
+      background: #feebc8;
+      color: #c05621;
+    }
+
+    .tab-btn.tab-all-pending.active {
+      background: #dd6b20;
+      color: #ffffff;
+    }
+
     /* CARDS DE FORMULÁRIO E TABELA */
     .form-card, .table-card {
       background: #fff;
@@ -170,7 +180,7 @@
       color: #4a5568;
     }
 
-    .form-group input {
+    .form-group input, .form-group select {
       padding: 10px;
       border: 1px solid #cbd5e0;
       border-radius: 4px;
@@ -242,7 +252,116 @@
 
     .status-pending { background-color: #feebc8; color: #c05621; }
     .status-completed { background-color: #c6f6d5; color: #22543d; }
+
+    .tab-tag {
+      display: inline-block;
+      background-color: #edf2f7;
+      color: #2d3748;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+    }
   </style>
+
+  <!-- MÓDULOS DO FIREBASE DA GOOGLE -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { 
+      getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ⚠️ SUBSTITUA O OBJETO ABAIXO PELAS SUAS CHAVES DO FIREBASE
+       const firebaseConfig = {
+      apiKey: "AIzaSyDt9o_bTPy180HW7EkvkDsjWr9d7n70_8I",
+      authDomain: "laboratorio-emb.firebaseapp.com",
+      projectId: "laboratorio-emb",
+      storageBucket: "laboratorio-emb.firebasestorage.app",
+      messagingSenderId: "306800412495",
+      appId: "1:306800412495:web:b1a88370913619ee3ee73a"
+    
+    };
+
+    // Inicializa o Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const routinesCollection = collection(db, "rotinas");
+
+    window.routines = [];
+    window.currentTab = 'Todas as Pendências';
+
+    // ATUALIZAÇÃO EM TEMPO REAL
+    onSnapshot(routinesCollection, (snapshot) => {
+      window.routines = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      // Ordena por data (mais recente primeiro)
+      window.routines.sort((a, b) => b.timestamp - a.timestamp);
+
+      updateDashboard();
+      renderRoutines();
+    });
+
+    window.addRoutine = async function(e) {
+      e.preventDefault();
+      const taskName = document.getElementById('taskName').value;
+      const taskArea = document.getElementById('taskArea').value;
+      const taskNF = document.getElementById('taskNF').value;
+      const taskObs = document.getElementById('taskObs').value;
+      
+      let targetTab = window.currentTab;
+      if (window.currentTab === 'Todas as Pendências') {
+        targetTab = document.getElementById('taskCategory').value;
+      }
+
+      const userSelect = document.getElementById('currentUser');
+      const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+
+      try {
+        await addDoc(routinesCollection, {
+          tab: targetTab,
+          title: taskName,
+          area: taskArea,
+          nf: taskNF || '-',
+          obs: taskObs || '-',
+          createdBy: userName,
+          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: 'pendente',
+          timestamp: Date.now()
+        });
+
+        document.getElementById('taskName').value = '';
+        document.getElementById('taskArea').value = '';
+        document.getElementById('taskNF').value = '';
+        document.getElementById('taskObs').value = '';
+      } catch (err) {
+        alert("Erro ao salvar no banco online: " + err.message);
+      }
+    };
+
+    window.toggleStatus = async function(id, currentStatus) {
+      const newStatus = currentStatus === 'pendente' ? 'concluido' : 'pendente';
+      const docRef = doc(db, "rotinas", id);
+      await updateDoc(docRef, { status: newStatus });
+    };
+
+    window.deleteRoutine = async function(id) {
+      const select = document.getElementById('currentUser');
+      const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
+
+      if (!canDelete) {
+        alert("Acesso Negado: Seu perfil não tem permissão para excluir registros.");
+        return;
+      }
+
+      if (confirm("Tem certeza que deseja apagar este registro do banco online?")) {
+        const docRef = doc(db, "rotinas", id);
+        await deleteDoc(docRef);
+      }
+    };
+  </script>
 </head>
 <body>
 
@@ -292,21 +411,31 @@
 
     <!-- ABAS DE NAVEGAÇÃO -->
     <div class="tabs-bar">
-      <button class="tab-btn active" onclick="switchTab('Rótulos', this)">🏷️ Rótulos</button>
+      <button class="tab-btn tab-all-pending active" onclick="switchTab('Todas as Pendências', this)">📋 Todas as Pendências</button>
+      <button class="tab-btn" onclick="switchTab('Rótulos', this)">🏷️ Rótulos</button>
       <button class="tab-btn" onclick="switchTab('Pré-formas', this)">🍼 Pré-formas</button>
       <button class="tab-btn" onclick="switchTab('Material Auxiliar', this)">📦 Material Auxiliar</button>
       <button class="tab-btn" onclick="switchTab('MP Não Conforme', this)">🚨 MP Não Conforme</button>
     </div>
 
     <!-- FORMULÁRIO DE CADASTRO -->
-    <div class="form-card">
+    <div class="form-card" id="formContainer">
       <div class="form-header">
         <h3>➕ Cadastrar Novo Lote / Entrada</h3>
-        <span>Aba: <strong id="activeTabName">Rótulos</strong></span>
+        <span>Aba de Destino: <strong id="activeTabName">Seleção Manual</strong></span>
       </div>
       
       <form id="routineForm" onsubmit="addRoutine(event)">
         <div class="form-row">
+          <div class="form-group flex-1" id="categorySelectGroup">
+            <label for="taskCategory">Categoria / Categoria da Entrada</label>
+            <select id="taskCategory">
+              <option value="Rótulos">🏷️ Rótulos</option>
+              <option value="Pré-formas">🍼 Pré-formas</option>
+              <option value="Material Auxiliar">📦 Material Auxiliar</option>
+              <option value="MP Não Conforme">🚨 MP Não Conforme</option>
+            </select>
+          </div>
           <div class="form-group flex-2">
             <label for="taskName">Produto / Material / Atividade</label>
             <input type="text" id="taskName" placeholder="Ex: ROT 2L CC MENOS ACUCAR" required>
@@ -329,17 +458,18 @@
         </div>
 
         <div class="form-actions">
-          <button type="submit" class="btn-save">➕ Salvar Registro</button>
+          <button type="submit" class="btn-save">➕ Salvar Registro Online</button>
         </div>
       </form>
     </div>
 
     <!-- TABELA DE RESULTADOS -->
     <div class="table-card">
-      <h3>Registros Cadastrados</h3>
+      <h3 id="tableTitle">📋 Todas as Pendências do Laboratório</h3>
       <table>
         <thead>
           <tr>
+            <th>Origem / Categoria</th>
             <th>Material / Atividade</th>
             <th>Bancada / Local</th>
             <th>NF</th>
@@ -358,9 +488,6 @@
   </div>
 
 <script>
-  let routines = JSON.parse(localStorage.getItem('lab_routines')) || [];
-  let currentTab = 'Rótulos';
-
   function updateUserPermissions() {
     const select = document.getElementById('currentUser');
     const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
@@ -378,98 +505,57 @@
   }
 
   function switchTab(tabName, btn) {
-    currentTab = tabName;
-    document.getElementById('activeTabName').innerText = tabName;
+    window.currentTab = tabName;
     
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    renderRoutines();
-  }
+    const categorySelectGroup = document.getElementById('categorySelectGroup');
+    const activeTabName = document.getElementById('activeTabName');
 
-  function addRoutine(e) {
-    e.preventDefault();
-    const taskName = document.getElementById('taskName').value;
-    const taskArea = document.getElementById('taskArea').value;
-    const taskNF = document.getElementById('taskNF').value;
-    const taskObs = document.getElementById('taskObs').value;
-    
-    const userSelect = document.getElementById('currentUser');
-    const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
-
-    const newRoutine = {
-      id: Date.now(),
-      tab: currentTab,
-      title: taskName,
-      area: taskArea,
-      nf: taskNF || '-',
-      obs: taskObs || '-',
-      createdBy: userName,
-      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: 'pendente'
-    };
-
-    routines.unshift(newRoutine);
-    saveAndRender();
-    
-    document.getElementById('taskName').value = '';
-    document.getElementById('taskArea').value = '';
-    document.getElementById('taskNF').value = '';
-    document.getElementById('taskObs').value = '';
-  }
-
-  function toggleStatus(id) {
-    routines = routines.map(item => {
-      if (item.id === id) {
-        item.status = item.status === 'pendente' ? 'concluido' : 'pendente';
-      }
-      return item;
-    });
-    saveAndRender();
-  }
-
-  function deleteRoutine(id) {
-    const select = document.getElementById('currentUser');
-    const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
-
-    if (!canDelete) {
-      alert("Acesso Negado: Seu perfil não tem permissão para excluir registros.");
-      return;
+    if (window.currentTab === 'Todas as Pendências') {
+      categorySelectGroup.style.display = 'block';
+      activeTabName.innerText = 'Seleção Manual';
+      document.getElementById('tableTitle').innerText = '📋 Todas as Pendências do Laboratório';
+    } else {
+      categorySelectGroup.style.display = 'none';
+      activeTabName.innerText = tabName;
+      document.getElementById('tableTitle').innerText = `Registros de ${tabName}`;
     }
 
-    if (confirm("Tem certeza que deseja apagar este registro?")) {
-      routines = routines.filter(item => item.id !== id);
-      saveAndRender();
-    }
-  }
-
-  function saveAndRender() {
-    localStorage.setItem('lab_routines', JSON.stringify(routines));
-    updateDashboard();
     renderRoutines();
   }
 
   function updateDashboard() {
-    document.getElementById('totalPendencias').innerText = routines.filter(r => r.status === 'pendente').length;
-    document.getElementById('totalSegregados').innerText = routines.filter(r => r.tab === 'MP Não Conforme').length;
-    document.getElementById('totalValidados').innerText = routines.filter(r => r.status === 'concluido').length;
-    document.getElementById('totalHoje').innerText = routines.length;
+    const list = window.routines || [];
+    document.getElementById('totalPendencias').innerText = list.filter(r => r.status === 'pendente').length;
+    document.getElementById('totalSegregados').innerText = list.filter(r => r.tab === 'MP Não Conforme' && r.status === 'pendente').length;
+    document.getElementById('totalValidados').innerText = list.filter(r => r.status === 'concluido').length;
+    document.getElementById('totalHoje').innerText = list.length;
   }
 
   function renderRoutines() {
     const listContainer = document.getElementById('routineList');
     const select = document.getElementById('currentUser');
     const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
+    const list = window.routines || [];
 
-    const filtered = routines.filter(r => r.tab === currentTab);
+    let filtered = [];
+
+    if (window.currentTab === 'Todas as Pendências') {
+      filtered = list.filter(r => r.status === 'pendente');
+    } else {
+      filtered = list.filter(r => r.tab === window.currentTab);
+    }
 
     if (filtered.length === 0) {
-      listContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #888;">Nenhum registro cadastrado nesta aba.</td></tr>';
+      listContainer.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #888;">Nenhum registro encontrado nesta exibição.</td></tr>';
       return;
     }
 
     listContainer.innerHTML = filtered.map(item => `
       <tr>
+        <td><span class="tab-tag">${item.tab}</span></td>
         <td><strong>${item.title}</strong></td>
         <td>${item.area}</td>
         <td>${item.nf}</td>
@@ -481,10 +567,10 @@
           </span>
         </td>
         <td>
-          <button class="btn-action ${item.status === 'concluido' ? 'btn-reopen' : 'btn-done'}" onclick="toggleStatus(${item.id})">
+          <button class="btn-action ${item.status === 'concluido' ? 'btn-reopen' : 'btn-done'}" onclick="toggleStatus('${item.id}', '${item.status}')">
             ${item.status === 'concluido' ? 'Reabrir' : 'Concluir'}
           </button>
-          <button class="btn-action btn-delete" ${canDelete ? '' : 'disabled'} onclick="deleteRoutine(${item.id})">
+          <button class="btn-action btn-delete" ${canDelete ? '' : 'disabled'} onclick="deleteRoutine('${item.id}')">
             Excluir
           </button>
         </td>
@@ -492,9 +578,7 @@
     `).join('');
   }
 
-  // Inicialização
   updateUserPermissions();
-  updateDashboard();
 </script>
 
 </body>
