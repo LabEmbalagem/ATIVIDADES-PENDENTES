@@ -63,7 +63,7 @@
 
     /* CONTAINER PRINCIPAL */
     .main-container {
-      max-width: 1300px;
+      max-width: 1400px;
       margin: 20px auto;
       padding: 0 20px;
     }
@@ -165,8 +165,8 @@
       flex-wrap: wrap;
     }
 
-    .flex-1 { flex: 1; min-width: 200px; }
-    .flex-2 { flex: 2; min-width: 300px; }
+    .flex-1 { flex: 1; min-width: 180px; }
+    .flex-2 { flex: 2; min-width: 280px; }
 
     .form-group {
       display: flex;
@@ -180,12 +180,47 @@
       color: #4a5568;
     }
 
-    .form-group input, .form-group select {
+    .form-group input, .form-group select, .form-group textarea {
       padding: 10px;
       border: 1px solid #cbd5e0;
       border-radius: 4px;
       font-size: 14px;
     }
+
+    /* ESTILOS DE VERIFICAÇÃO / CHECKLIST */
+    .checklist-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      background: #f7fafc;
+      padding: 15px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 15px;
+    }
+
+    .checklist-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .checklist-item label {
+      font-size: 11px;
+      font-weight: bold;
+      color: #2d3748;
+    }
+
+    .checklist-item select {
+      padding: 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      border: 1px solid #cbd5e0;
+    }
+
+    .select-ok { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
+    .select-pendencia { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+    .select-nok { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
 
     .form-actions {
       display: flex;
@@ -205,6 +240,10 @@
     .btn-save:hover { background-color: #2c5282; }
 
     /* TABELA DE REGISTROS */
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -264,25 +303,22 @@
     }
   </style>
 
-  <!-- MÓDULOS DO FIREBASE DA GOOGLE -->
+  <!-- MÓDULOS DO FIREBASE -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
       getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    // ⚠️ SUBSTITUA O OBJETO ABAIXO PELAS SUAS CHAVES DO FIREBASE
-       const firebaseConfig = {
+    const firebaseConfig = {
       apiKey: "AIzaSyDt9o_bTPy180HW7EkvkDsjWr9d7n70_8I",
       authDomain: "laboratorio-emb.firebaseapp.com",
       projectId: "laboratorio-emb",
       storageBucket: "laboratorio-emb.firebasestorage.app",
       messagingSenderId: "306800412495",
       appId: "1:306800412495:web:b1a88370913619ee3ee73a"
-    
     };
 
-    // Inicializa o Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const routinesCollection = collection(db, "rotinas");
@@ -290,20 +326,40 @@
     window.routines = [];
     window.currentTab = 'Todas as Pendências';
 
-    // ATUALIZAÇÃO EM TEMPO REAL
+    // ITENS DE VERIFICAÇÃO POR CATEGORIA
+    window.CONFIG_CATEGORIAS = {
+      "Rótulos": [
+        "Laudo Verificado", "Laudo anexado ao SAP", "Romaneio", "Dizeres", 
+        "Blue/Koart", "Lançado no SAP", "Pasta Padrão", "DU", 
+        "Planilha de Recebimento", "FOTO no SAP", "Laudo salvo na pasta/Excel"
+      ],
+      "Pré-formas": [
+        "Laudo Verificado", "Lançamento no SAP", "DU", 
+        "Planilha de Recebimento", "Laudo Salvo na pasta/Excel", "Arquivado no SAP"
+      ],
+      "Material Auxiliar": [
+        "Laudo Verificado", "Lançamento no SAP", "DU", 
+        "Planilha de Recebimento", "Laudo Salvo na pasta/Excel"
+      ],
+      "MP Não Conforme": [
+        "Identificação Segregada", "Aviso à Qualidade", "Laudo e Evidências Anexados"
+      ]
+    };
+
+    // ESCUTA EM TEMPO REAL
     onSnapshot(routinesCollection, (snapshot) => {
       window.routines = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       
-      // Ordena por data (mais recente primeiro)
       window.routines.sort((a, b) => b.timestamp - a.timestamp);
 
       updateDashboard();
       renderRoutines();
     });
 
+    // ADICIONAR NOVA ROTINA
     window.addRoutine = async function(e) {
       e.preventDefault();
       const taskName = document.getElementById('taskName').value;
@@ -319,6 +375,16 @@
       const userSelect = document.getElementById('currentUser');
       const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
 
+      // Coletar status dos itens de verificação (Checklist)
+      const checklistData = {};
+      const itemsList = window.CONFIG_CATEGORIAS[targetTab] || [];
+      itemsList.forEach((item, idx) => {
+        const sel = document.getElementById(`check_item_${idx}`);
+        if (sel) {
+          checklistData[item] = sel.value;
+        }
+      });
+
       try {
         await addDoc(routinesCollection, {
           tab: targetTab,
@@ -326,16 +392,22 @@
           area: taskArea,
           nf: taskNF || '-',
           obs: taskObs || '-',
+          checklist: checklistData,
           createdBy: userName,
           createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           status: 'pendente',
           timestamp: Date.now()
         });
 
+        // Limpa campos
         document.getElementById('taskName').value = '';
         document.getElementById('taskArea').value = '';
         document.getElementById('taskNF').value = '';
         document.getElementById('taskObs').value = '';
+        
+        // Reseta o formulário dinâmico
+        renderChecklistForm(targetTab);
+
       } catch (err) {
         alert("Erro ao salvar no banco online: " + err.message);
       }
@@ -379,9 +451,9 @@
         <option value="senior1" data-can-delete="true">Cledison Sênior 1 </option>
         <option value="senior2" data-can-delete="true">Shaienne Sênior 2 </option>
         <!-- Apenas Leitura / Registro -->
-        <option value="inspetor1" data-can-delete="false">Raimundo Inspetor 1 (Apenas Registra/Conclui)</option>
-        <option value="inspetor2" data-can-delete="false">Marciane Inspetor 2 (Apenas Registra/Conclui)</option>
-        <option value="inspetor3" data-can-delete="false">Paulo Inspetor 3 (Apenas Registra/Conclui)</option>
+        <option value="inspetor1" data-can-delete="false">Raimundo Inspetor 1 </option>
+        <option value="inspetor2" data-can-delete="false">Marciane Inspetor 2 </option>
+        <option value="inspetor3" data-can-delete="false">Paulo Inspetor 3 </option>
       </select>
       <span id="permissionStatus" class="badge"></span>
     </div>
@@ -429,10 +501,10 @@
         <div class="form-row">
           <div class="form-group flex-1" id="categorySelectGroup">
             <label for="taskCategory">Categoria / Categoria da Entrada</label>
-            <select id="taskCategory">
-              <option value="Rótulos">🏷️ Rótulos</option>
-              <option value="Pré-formas">🍼 Pré-formas</option>
-              <option value="Material Auxiliar">📦 Material Auxiliar</option>
+            <select id="taskCategory" onchange="onCategoryChange()">
+              <option value="Rótulos">🏷️ Rótulos (11 Itens)</option>
+              <option value="Pré-formas">🍼 Pré-formas (6 Itens)</option>
+              <option value="Material Auxiliar">📦 Material Auxiliar (5 Itens)</option>
               <option value="MP Não Conforme">🚨 MP Não Conforme</option>
             </select>
           </div>
@@ -450,10 +522,18 @@
           </div>
         </div>
 
+        <!-- ÁREA DO CHECKLIST DINÂMICO -->
+        <div class="form-group mb-3">
+          <label>Itens de Verificação do Lote:</label>
+          <div id="checklistContainer" class="checklist-grid">
+            <!-- Gerado via JavaScript -->
+          </div>
+        </div>
+
         <div class="form-row">
           <div class="form-group flex-1">
-            <label for="taskObs">Observações / Pendência Inicial</label>
-            <input type="text" id="taskObs" placeholder="Ex: Produto Segregado / Falta laudo e romaneio">
+            <label for="taskObs" id="lblObs">Observações / Pendência Inicial</label>
+            <input type="text" id="taskObs" placeholder="Ex: Falta laudo e romaneio">
           </div>
         </div>
 
@@ -466,23 +546,25 @@
     <!-- TABELA DE RESULTADOS -->
     <div class="table-card">
       <h3 id="tableTitle">📋 Todas as Pendências do Laboratório</h3>
-      <table>
-        <thead>
-          <tr>
-            <th>Origem / Categoria</th>
-            <th>Material / Atividade</th>
-            <th>Bancada / Local</th>
-            <th>NF</th>
-            <th>Observações</th>
-            <th>Responsável</th>
-            <th>Status</th>
-            <th>Ações</th>
-          </tr>
-        </thead>
-        <tbody id="routineList">
-          <!-- Linhas renderizadas via JS -->
-        </tbody>
-      </table>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Origem / Categoria</th>
+              <th>Material / Atividade</th>
+              <th>Responsável</th>
+              <th>NF</th>
+              <th>Itens de Verificação / Pendências</th>
+              <th>Modificado por</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="routineList">
+            <!-- Linhas renderizadas via JS -->
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>
@@ -504,6 +586,64 @@
     renderRoutines();
   }
 
+  function renderChecklistForm(categoria) {
+    const container = document.getElementById('checklistContainer');
+    const items = window.CONFIG_CATEGORIAS[categoria] || [];
+    
+    if (items.length === 0) {
+      container.innerHTML = '<span style="color:#888;">Sem checklist cadastrado para esta categoria.</span>';
+      return;
+    }
+
+    container.innerHTML = items.map((item, idx) => `
+      <div class="checklist-item">
+        <label>${item}</label>
+        <select id="check_item_${idx}" class="select-pendencia" onchange="evalChecklistStyles()">
+          <option value="PENDÊNCIA" class="select-pendencia">PENDÊNCIA</option>
+          <option value="OK" class="select-ok">OK</option>
+          <option value="NOK" class="select-nok">NOK</option>
+        </select>
+      </div>
+    `).join('');
+
+    evalChecklistStyles();
+  }
+
+  function evalChecklistStyles() {
+    const container = document.getElementById('checklistContainer');
+    const selects = container.querySelectorAll('select');
+    const lblObs = document.getElementById('lblObs');
+    const taskObs = document.getElementById('taskObs');
+
+    let temPendenciaOuNok = false;
+
+    selects.forEach(sel => {
+      sel.className = '';
+      if (sel.value === 'OK') {
+        sel.classList.add('select-ok');
+      } else if (sel.value === 'PENDÊNCIA') {
+        sel.classList.add('select-pendencia');
+        temPendenciaOuNok = true;
+      } else if (sel.value === 'NOK') {
+        sel.classList.add('select-nok');
+        temPendenciaOuNok = true;
+      }
+    });
+
+    if (temPendenciaOuNok) {
+      lblObs.innerHTML = 'Observações / Detalhes da Pendência <span style="color:red;">* (Obrigatório)</span>';
+      taskObs.required = true;
+    } else {
+      lblObs.innerHTML = 'Observações / Detalhes (Opcional)';
+      taskObs.required = false;
+    }
+  }
+
+  function onCategoryChange() {
+    const cat = document.getElementById('taskCategory').value;
+    renderChecklistForm(cat);
+  }
+
   function switchTab(tabName, btn) {
     window.currentTab = tabName;
     
@@ -517,10 +657,12 @@
       categorySelectGroup.style.display = 'block';
       activeTabName.innerText = 'Seleção Manual';
       document.getElementById('tableTitle').innerText = '📋 Todas as Pendências do Laboratório';
+      onCategoryChange();
     } else {
       categorySelectGroup.style.display = 'none';
       activeTabName.innerText = tabName;
       document.getElementById('tableTitle').innerText = `Registros de ${tabName}`;
+      renderChecklistForm(tabName);
     }
 
     renderRoutines();
@@ -553,32 +695,50 @@
       return;
     }
 
-    listContainer.innerHTML = filtered.map(item => `
-      <tr>
-        <td><span class="tab-tag">${item.tab}</span></td>
-        <td><strong>${item.title}</strong></td>
-        <td>${item.area}</td>
-        <td>${item.nf}</td>
-        <td>${item.obs}</td>
-        <td>${item.createdBy} <br><small style="color:#718096;">${item.createdAt}</small></td>
-        <td>
-          <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
-            ${item.status === 'concluido' ? 'Concluído' : 'Pendente'}
-          </span>
-        </td>
-        <td>
-          <button class="btn-action ${item.status === 'concluido' ? 'btn-reopen' : 'btn-done'}" onclick="toggleStatus('${item.id}', '${item.status}')">
-            ${item.status === 'concluido' ? 'Reabrir' : 'Concluir'}
-          </button>
-          <button class="btn-action btn-delete" ${canDelete ? '' : 'disabled'} onclick="deleteRoutine('${item.id}')">
-            Excluir
-          </button>
-        </td>
-      </tr>
-    `).join('');
+    listContainer.innerHTML = filtered.map(item => {
+      // Montagem da coluna de Checklist/Observação
+      let checklistHtml = '';
+      if (item.checklist && Object.keys(item.checklist).length > 0) {
+        checklistHtml = Object.entries(item.checklist).map(([k, v]) => {
+          let color = '#856404';
+          if (v === 'OK') color = '#155724';
+          if (v === 'NOK') color = '#721c24';
+          return `<span style="font-size: 11px; font-weight: bold; color: ${color};">${k}: ${v}</span>`;
+        }).join(' | ');
+      }
+
+      return `
+        <tr>
+          <td><span class="tab-tag">${item.tab}</span></td>
+          <td><strong>${item.title}</strong></td>
+          <td>${item.area}</td>
+          <td>${item.nf}</td>
+          <td>
+            ${checklistHtml ? `<div style="margin-bottom: 5px;">${checklistHtml}</div>` : ''}
+            <div><strong>Obs:</strong> ${item.obs}</div>
+          </td>
+          <td>${item.createdBy} <br><small style="color:#718096;">${item.createdAt}</small></td>
+          <td>
+            <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
+              ${item.status === 'concluido' ? 'Concluído' : 'Pendente'}
+            </span>
+          </td>
+          <td>
+            <button class="btn-action ${item.status === 'concluido' ? 'btn-reopen' : 'btn-done'}" onclick="toggleStatus('${item.id}', '${item.status}')">
+              ${item.status === 'concluido' ? 'Reabrir' : 'Concluir'}
+            </button>
+            <button class="btn-action btn-delete" ${canDelete ? '' : 'disabled'} onclick="deleteRoutine('${item.id}')">
+              Excluir
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
   }
 
+  // Inicializa permissões e formulários
   updateUserPermissions();
+  onCategoryChange();
 </script>
 
 </body>
