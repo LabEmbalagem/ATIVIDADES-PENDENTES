@@ -180,7 +180,7 @@
       color: #4a5568;
     }
 
-    .form-group input, .form-group select, .form-group textarea {
+    .form-group input, .form-group select {
       padding: 10px;
       border: 1px solid #cbd5e0;
       border-radius: 4px;
@@ -263,16 +263,17 @@
     }
 
     .btn-action {
-      padding: 6px 12px;
+      padding: 6px 10px;
       border-radius: 4px;
       border: none;
       font-weight: bold;
       cursor: pointer;
       font-size: 12px;
-      margin-right: 5px;
+      margin-right: 4px;
       color: white;
     }
 
+    .btn-edit { background-color: #3182ce; }
     .btn-done { background-color: #38a169; }
     .btn-reopen { background-color: #dd6b20; }
     .btn-delete { background-color: #e53e3e; }
@@ -301,6 +302,37 @@
       font-size: 11px;
       font-weight: bold;
     }
+
+    .item-chip {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      margin: 2px;
+    }
+
+    /* MODAL DE EDIÇÃO */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: #fff;
+      padding: 25px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
   </style>
 
   <!-- MÓDULOS DO FIREBASE -->
@@ -325,6 +357,7 @@
 
     window.routines = [];
     window.currentTab = 'Todas as Pendências';
+    window.activeModalDocId = null;
 
     // ITENS DE VERIFICAÇÃO POR CATEGORIA
     window.CONFIG_CATEGORIAS = {
@@ -399,17 +432,56 @@
           timestamp: Date.now()
         });
 
-        // Limpa campos
         document.getElementById('taskName').value = '';
         document.getElementById('taskArea').value = '';
         document.getElementById('taskNF').value = '';
         document.getElementById('taskObs').value = '';
         
-        // Reseta o formulário dinâmico
         renderChecklistForm(targetTab);
 
       } catch (err) {
         alert("Erro ao salvar no banco online: " + err.message);
+      }
+    };
+
+    // GUARDAR ALTERAÇÕES DO CHECKLIST NO MODAL
+    window.saveChecklistEdit = async function() {
+      if (!window.activeModalDocId) return;
+
+      const docRef = doc(db, "rotinas", window.activeModalDocId);
+      const itemFind = window.routines.find(r => r.id === window.activeModalDocId);
+      if (!itemFind) return;
+
+      const updatedChecklist = {};
+      const itemsList = window.CONFIG_CATEGORIAS[itemFind.tab] || [];
+
+      itemsList.forEach((item, idx) => {
+        const sel = document.getElementById(`modal_check_item_${idx}`);
+        if (sel) {
+          updatedChecklist[item] = sel.value;
+        }
+      });
+
+      const updatedObs = document.getElementById('modalTaskObs').value;
+
+      // Verificar se ainda resta alguma pendência ou NOK
+      const temPendencia = Object.values(updatedChecklist).some(val => val === 'PENDÊNCIA' || val === 'NOK');
+      
+      const userSelect = document.getElementById('currentUser');
+      const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+
+      try {
+        await updateDoc(docRef, {
+          checklist: updatedChecklist,
+          obs: updatedObs,
+          status: temPendencia ? 'pendente' : 'concluido',
+          createdBy: userName,
+          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+
+        closeEditModal();
+      } catch (err) {
+        alert("Erro ao atualizar o checklist: " + err.message);
       }
     };
 
@@ -446,11 +518,9 @@
     <div class="user-control">
       <label for="currentUser">Usuário Ativo:</label>
       <select id="currentUser" onchange="updateUserPermissions()">
-        <!-- Autorizados a Excluir -->
         <option value="supervisor" data-can-delete="true">Supervisor Dimas</option>
         <option value="senior1" data-can-delete="true">Cledison Sênior 1 </option>
         <option value="senior2" data-can-delete="true">Shaienne Sênior 2 </option>
-        <!-- Apenas Leitura / Registro -->
         <option value="inspetor1" data-can-delete="false">Raimundo Inspetor 1 </option>
         <option value="inspetor2" data-can-delete="false">Marciane Inspetor 2 </option>
         <option value="inspetor3" data-can-delete="false">Paulo Inspetor 3 </option>
@@ -554,7 +624,8 @@
               <th>Material / Atividade</th>
               <th>Responsável</th>
               <th>NF</th>
-              <th>Itens de Verificação / Pendências</th>
+              <th>Itens do Checklist</th>
+              <th>Observações</th>
               <th>Modificado por</th>
               <th>Status</th>
               <th>Ações</th>
@@ -567,6 +638,28 @@
       </div>
     </div>
 
+  </div>
+
+  <!-- MODAL DE EDIÇÃO DO CHECKLIST -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 15px; color: #1a365d;">✏️ Modificar Checklist / Pendências</h3>
+      <p id="modalMaterialTitle" style="margin-bottom: 15px; font-weight: bold; color: #4a5568;"></p>
+      
+      <div id="modalChecklistContainer" class="checklist-grid" style="grid-template-columns: 1fr;">
+        <!-- Gerado Dinamicamente -->
+      </div>
+
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label for="modalTaskObs">Atualizar Observações / Pendências:</label>
+        <input type="text" id="modalTaskObs">
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="tab-btn" onclick="closeEditModal()">Cancelar</button>
+        <button type="button" class="btn-save" onclick="saveChecklistEdit()">💾 Salvar Alterações</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -639,6 +732,39 @@
     }
   }
 
+  function openEditModal(id) {
+    const item = window.routines.find(r => r.id === id);
+    if (!item) return;
+
+    window.activeModalDocId = id;
+    document.getElementById('modalMaterialTitle').innerText = `Material: ${item.title} (${item.tab})`;
+    document.getElementById('modalTaskObs').value = item.obs || '';
+
+    const container = document.getElementById('modalChecklistContainer');
+    const itemsList = window.CONFIG_CATEGORIAS[item.tab] || [];
+
+    container.innerHTML = itemsList.map((checkName, idx) => {
+      const currentVal = (item.checklist && item.checklist[checkName]) ? item.checklist[checkName] : 'PENDÊNCIA';
+      return `
+        <div class="checklist-item" style="flex-direction: row; justify-content: space-between; align-items: center;">
+          <label style="font-size: 13px;">${checkName}:</label>
+          <select id="modal_check_item_${idx}" style="width: 150px;">
+            <option value="OK" ${currentVal === 'OK' ? 'selected' : ''}>OK</option>
+            <option value="PENDÊNCIA" ${currentVal === 'PENDÊNCIA' ? 'selected' : ''}>PENDÊNCIA</option>
+            <option value="NOK" ${currentVal === 'NOK' ? 'selected' : ''}>NOK</option>
+          </select>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('editModal').style.display = 'flex';
+  }
+
+  function closeEditModal() {
+    window.activeModalDocId = null;
+    document.getElementById('editModal').style.display = 'none';
+  }
+
   function onCategoryChange() {
     const cat = document.getElementById('taskCategory').value;
     renderChecklistForm(cat);
@@ -691,20 +817,19 @@
     }
 
     if (filtered.length === 0) {
-      listContainer.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #888;">Nenhum registro encontrado nesta exibição.</td></tr>';
+      listContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #888;">Nenhum registro encontrado nesta exibição.</td></tr>';
       return;
     }
 
     listContainer.innerHTML = filtered.map(item => {
-      // Montagem da coluna de Checklist/Observação
-      let checklistHtml = '';
+      let checklistChips = '';
       if (item.checklist && Object.keys(item.checklist).length > 0) {
-        checklistHtml = Object.entries(item.checklist).map(([k, v]) => {
-          let color = '#856404';
-          if (v === 'OK') color = '#155724';
-          if (v === 'NOK') color = '#721c24';
-          return `<span style="font-size: 11px; font-weight: bold; color: ${color};">${k}: ${v}</span>`;
-        }).join(' | ');
+        checklistChips = Object.entries(item.checklist).map(([k, v]) => {
+          let bg = '#fff3cd'; let color = '#856404';
+          if (v === 'OK') { bg = '#d4edda'; color = '#155724'; }
+          if (v === 'NOK') { bg = '#f8d7da'; color = '#721c24'; }
+          return `<span class="item-chip" style="background:${bg}; color:${color};">${k}: ${v}</span>`;
+        }).join(' ');
       }
 
       return `
@@ -713,10 +838,8 @@
           <td><strong>${item.title}</strong></td>
           <td>${item.area}</td>
           <td>${item.nf}</td>
-          <td>
-            ${checklistHtml ? `<div style="margin-bottom: 5px;">${checklistHtml}</div>` : ''}
-            <div><strong>Obs:</strong> ${item.obs}</div>
-          </td>
+          <td style="max-width: 250px;">${checklistChips || '-'}</td>
+          <td>${item.obs}</td>
           <td>${item.createdBy} <br><small style="color:#718096;">${item.createdAt}</small></td>
           <td>
             <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
@@ -724,6 +847,7 @@
             </span>
           </td>
           <td>
+            <button class="btn-action btn-edit" onclick="openEditModal('${item.id}')">✏️ Editar</button>
             <button class="btn-action ${item.status === 'concluido' ? 'btn-reopen' : 'btn-done'}" onclick="toggleStatus('${item.id}', '${item.status}')">
               ${item.status === 'concluido' ? 'Reabrir' : 'Concluir'}
             </button>
@@ -736,7 +860,6 @@
     }).join('');
   }
 
-  // Inicializa permissões e formulários
   updateUserPermissions();
   onCategoryChange();
 </script>
