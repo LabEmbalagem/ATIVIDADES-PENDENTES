@@ -357,6 +357,7 @@
     }
   </style>
 
+  <!-- MÓDULOS DO FIREBASE -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
@@ -535,7 +536,7 @@
           checklist: updatedChecklist,
           obs: updatedObs,
           status: temPendencia ? 'pendente' : 'concluido',
-          createdBy: userName,
+          lastModifiedBy: userName,
           modifiedAt: formattedNow,
           updatedTimestamp: now
         });
@@ -557,7 +558,7 @@
 
       await updateDoc(docRef, { 
         status: newStatus,
-        createdBy: userName,
+        lastModifiedBy: userName,
         modifiedAt: formattedNow,
         updatedTimestamp: now
       });
@@ -581,6 +582,7 @@
 </head>
 <body>
 
+  <!-- CABEÇALHO COM SELEÇÃO DE USUÁRIO -->
   <header class="top-bar">
     <div class="logo-title">
       <span style="font-size: 24px;">🔬</span>
@@ -602,6 +604,7 @@
 
   <div class="main-container">
 
+    <!-- DASHBOARD DE CONTADORES -->
     <div class="dashboard-cards">
       <div class="card card-orange">
         <span class="card-title">TOTAL PENDÊNCIAS</span>
@@ -625,6 +628,7 @@
       </div>
     </div>
 
+    <!-- ABAS DE NAVEGAÇÃO -->
     <div class="tabs-bar">
       <button class="tab-btn tab-all-pending active" onclick="switchTab('Todas as Pendências', this)">📋 Todas as Pendências</button>
       <button class="tab-btn tab-demandas" onclick="switchTab('Demandas do Supervisor', this)">🎯 Demandas do Supervisor</button>
@@ -634,6 +638,7 @@
       <button class="tab-btn" onclick="switchTab('MP Não Conforme', this)">🚨 MP Não Conforme</button>
     </div>
 
+    <!-- FORMULÁRIO DE CADASTRO -->
     <div class="form-card" id="formContainer">
       <div class="form-header">
         <h3>➕ Cadastrar Novo Lote / Entrada / Demanda</h3>
@@ -670,10 +675,12 @@
           </div>
         </div>
 
+        <!-- ÁREA DO CHECKLIST DINÂMICO -->
         <div class="form-group mb-3">
           <label>Itens de Verificação / Status Inicial:</label>
           <div id="checklistContainer" class="checklist-grid">
-            </div>
+            <!-- Gerado via JavaScript -->
+          </div>
         </div>
 
         <div class="form-row">
@@ -689,6 +696,7 @@
       </form>
     </div>
 
+    <!-- TABELA DE RESULTADOS -->
     <div class="table-card">
       <h3 id="tableTitle">📋 Todas as Pendências do Laboratório</h3>
       <div class="table-wrapper">
@@ -701,26 +709,29 @@
               <th>NF / Prazo</th>
               <th>Checklist / Status</th>
               <th>Observações</th>
-              <th>Inclusão / Edição</th>
+              <th>Datas e Registros</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody id="routineList">
-            </tbody>
+            <!-- Linhas renderizadas via JS -->
+          </tbody>
         </table>
       </div>
     </div>
 
   </div>
 
+  <!-- MODAL DE EDIÇÃO DO CHECKLIST -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-content">
       <h3 style="margin-bottom: 15px; color: #1a365d;">✏️ Modificar Registro / Checklist</h3>
       <p id="modalMaterialTitle" style="margin-bottom: 15px; font-weight: bold; color: #4a5568;"></p>
       
       <div id="modalChecklistContainer" class="checklist-grid" style="grid-template-columns: 1fr;">
-        </div>
+        <!-- Gerado Dinamicamente -->
+      </div>
 
       <div class="form-group" style="margin-bottom: 20px;">
         <label for="modalTaskObs">Atualizar Observações:</label>
@@ -923,6 +934,7 @@
       // Tratamento de datas
       const createdAtStr = item.createdAt || window.formatDateTime(item.timestamp);
       const modifiedAtStr = item.modifiedAt || createdAtStr;
+      const lastUser = item.lastModifiedBy || item.createdBy;
       const timeAgo = window.getTimeAgo(item.timestamp);
 
       // Tratamento NF x Prazo
@@ -945,9 +957,9 @@
           <td style="max-width: 230px;">${checklistChips || '-'}</td>
           <td>${item.obs}</td>
           <td>
-            <div style="font-size:11px; color:#2b6cb0;"><strong>Inc:</strong> ${createdAtStr}</div>
-            <div style="font-size:11px; color:#4a5568;"><strong>Alt:</strong> ${modifiedAtStr} por ${item.createdBy}</div>
-            <span class="time-tracker">⏱️ ${timeAgo}</span>
+            <div style="font-size:11px; color:#2b6cb0;"><strong>Cadastrado em:</strong> ${createdAtStr} (${item.createdBy})</div>
+            <div style="font-size:11px; color:#4a5568;"><strong>Editado em:</strong> ${modifiedAtStr} (${lastUser})</div>
+            <span class="time-tracker">⏱️ Cadastrado ${timeAgo}</span>
           </td>
           <td>
             <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
