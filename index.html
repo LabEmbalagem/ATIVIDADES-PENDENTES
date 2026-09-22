@@ -63,7 +63,7 @@
 
     /* CONTAINER PRINCIPAL */
     .main-container {
-      max-width: 1400px;
+      max-width: 1450px;
       margin: 20px auto;
       padding: 0 20px;
     }
@@ -91,6 +91,7 @@
     .card-red { border-left-color: #e53e3e; }
     .card-green { border-left-color: #38a169; }
     .card-blue { border-left-color: #3182ce; }
+    .card-purple { border-left-color: #805ad5; }
 
     .card-title {
       font-size: 11px;
@@ -136,6 +137,16 @@
 
     .tab-btn.tab-all-pending.active {
       background: #dd6b20;
+      color: #ffffff;
+    }
+
+    .tab-btn.tab-demandas {
+      background: #e9d8fd;
+      color: #6b46c1;
+    }
+
+    .tab-btn.tab-demandas.active {
+      background: #805ad5;
       color: #ffffff;
     }
 
@@ -254,7 +265,7 @@
       text-align: left;
       padding: 12px;
       border-bottom: 1px solid #edf2f7;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     th {
@@ -312,6 +323,17 @@
       margin: 2px;
     }
 
+    .time-tracker {
+      display: inline-block;
+      background-color: #edf2f7;
+      color: #4a5568;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
     /* MODAL DE EDIÇÃO */
     .modal-overlay {
       display: none;
@@ -335,7 +357,6 @@
     }
   </style>
 
-  <!-- MÓDULOS DO FIREBASE -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
@@ -376,6 +397,9 @@
       ],
       "MP Não Conforme": [
         "Identificação Segregada", "Aviso à Qualidade", "Laudo e Evidências Anexados"
+      ],
+      "Demandas do Supervisor": [
+        "Acompanhamento de Tarefa", "Evidência / Validação"
       ]
     };
 
@@ -392,13 +416,41 @@
       renderRoutines();
     });
 
-    // ADICIONAR NOVA ROTINA
+    // FORMATAR DATA EM DD/MM/AA HH:MM
+    window.formatDateTime = function(timestamp) {
+      if (!timestamp) return '-';
+      const d = new Date(timestamp);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = String(d.getFullYear()).slice(-2);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    };
+
+    // CALCULAR TEMPO TRANSCORRIDO DESDE A CRIAÇÃO
+    window.getTimeAgo = function(timestamp) {
+      if (!timestamp) return '';
+      const now = Date.now();
+      const diffMs = now - timestamp;
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      
+      if (diffMins < 1) return 'há poucos segundos';
+      if (diffMins < 60) return `há ${diffMins} min`;
+      const diffHours = Math.floor(diffMins / 60);
+      if (diffHours < 24) return `há ${diffHours}h`;
+      const diffDays = Math.floor(diffHours / 24);
+      return `há ${diffDays}d`;
+    };
+
+    // ADICIONAR NOVA ROTINA / DEMANDA
     window.addRoutine = async function(e) {
       e.preventDefault();
       const taskName = document.getElementById('taskName').value;
       const taskArea = document.getElementById('taskArea').value;
       const taskNF = document.getElementById('taskNF').value;
       const taskObs = document.getElementById('taskObs').value;
+      const taskDeadline = document.getElementById('taskDeadline') ? document.getElementById('taskDeadline').value : '';
       
       let targetTab = window.currentTab;
       if (window.currentTab === 'Todas as Pendências') {
@@ -418,6 +470,9 @@
         }
       });
 
+      const now = Date.now();
+      const formattedNow = window.formatDateTime(now);
+
       try {
         await addDoc(routinesCollection, {
           tab: targetTab,
@@ -425,17 +480,21 @@
           area: taskArea,
           nf: taskNF || '-',
           obs: taskObs || '-',
+          deadline: taskDeadline || '-',
           checklist: checklistData,
           createdBy: userName,
-          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: 'pendente',
-          timestamp: Date.now()
+          createdAt: formattedNow,
+          modifiedAt: formattedNow,
+          timestamp: now,
+          updatedTimestamp: now,
+          status: 'pendente'
         });
 
         document.getElementById('taskName').value = '';
         document.getElementById('taskArea').value = '';
         document.getElementById('taskNF').value = '';
         document.getElementById('taskObs').value = '';
+        if (document.getElementById('taskDeadline')) document.getElementById('taskDeadline').value = '';
         
         renderChecklistForm(targetTab);
 
@@ -463,12 +522,13 @@
       });
 
       const updatedObs = document.getElementById('modalTaskObs').value;
-
-      // Verificar se ainda resta alguma pendência ou NOK
       const temPendencia = Object.values(updatedChecklist).some(val => val === 'PENDÊNCIA' || val === 'NOK');
       
       const userSelect = document.getElementById('currentUser');
       const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+
+      const now = Date.now();
+      const formattedNow = window.formatDateTime(now);
 
       try {
         await updateDoc(docRef, {
@@ -476,7 +536,8 @@
           obs: updatedObs,
           status: temPendencia ? 'pendente' : 'concluido',
           createdBy: userName,
-          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          modifiedAt: formattedNow,
+          updatedTimestamp: now
         });
 
         closeEditModal();
@@ -488,7 +549,18 @@
     window.toggleStatus = async function(id, currentStatus) {
       const newStatus = currentStatus === 'pendente' ? 'concluido' : 'pendente';
       const docRef = doc(db, "rotinas", id);
-      await updateDoc(docRef, { status: newStatus });
+      const now = Date.now();
+      const formattedNow = window.formatDateTime(now);
+
+      const userSelect = document.getElementById('currentUser');
+      const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+
+      await updateDoc(docRef, { 
+        status: newStatus,
+        createdBy: userName,
+        modifiedAt: formattedNow,
+        updatedTimestamp: now
+      });
     };
 
     window.deleteRoutine = async function(id) {
@@ -509,7 +581,6 @@
 </head>
 <body>
 
-  <!-- CABEÇALHO COM SELEÇÃO DE USUÁRIO -->
   <header class="top-bar">
     <div class="logo-title">
       <span style="font-size: 24px;">🔬</span>
@@ -531,11 +602,14 @@
 
   <div class="main-container">
 
-    <!-- DASHBOARD DE CONTADORES -->
     <div class="dashboard-cards">
       <div class="card card-orange">
         <span class="card-title">TOTAL PENDÊNCIAS</span>
         <span class="card-value" id="totalPendencias">0</span>
+      </div>
+      <div class="card card-purple">
+        <span class="card-title">DEMANDAS SUPERVISOR</span>
+        <span class="card-value" id="totalDemandas">0</span>
       </div>
       <div class="card card-red">
         <span class="card-title">MP NÃO CONFORME</span>
@@ -551,59 +625,61 @@
       </div>
     </div>
 
-    <!-- ABAS DE NAVEGAÇÃO -->
     <div class="tabs-bar">
       <button class="tab-btn tab-all-pending active" onclick="switchTab('Todas as Pendências', this)">📋 Todas as Pendências</button>
+      <button class="tab-btn tab-demandas" onclick="switchTab('Demandas do Supervisor', this)">🎯 Demandas do Supervisor</button>
       <button class="tab-btn" onclick="switchTab('Rótulos', this)">🏷️ Rótulos</button>
       <button class="tab-btn" onclick="switchTab('Pré-formas', this)">🍼 Pré-formas</button>
       <button class="tab-btn" onclick="switchTab('Material Auxiliar', this)">📦 Material Auxiliar</button>
       <button class="tab-btn" onclick="switchTab('MP Não Conforme', this)">🚨 MP Não Conforme</button>
     </div>
 
-    <!-- FORMULÁRIO DE CADASTRO -->
     <div class="form-card" id="formContainer">
       <div class="form-header">
-        <h3>➕ Cadastrar Novo Lote / Entrada</h3>
+        <h3>➕ Cadastrar Novo Lote / Entrada / Demanda</h3>
         <span>Aba de Destino: <strong id="activeTabName">Seleção Manual</strong></span>
       </div>
       
       <form id="routineForm" onsubmit="addRoutine(event)">
         <div class="form-row">
           <div class="form-group flex-1" id="categorySelectGroup">
-            <label for="taskCategory">Categoria / Categoria da Entrada</label>
+            <label for="taskCategory">Categoria da Entrada</label>
             <select id="taskCategory" onchange="onCategoryChange()">
               <option value="Rótulos">🏷️ Rótulos (11 Itens)</option>
               <option value="Pré-formas">🍼 Pré-formas (6 Itens)</option>
               <option value="Material Auxiliar">📦 Material Auxiliar (5 Itens)</option>
               <option value="MP Não Conforme">🚨 MP Não Conforme</option>
+              <option value="Demandas do Supervisor">🎯 Demandas do Supervisor</option>
             </select>
           </div>
           <div class="form-group flex-2">
-            <label for="taskName">Produto / Material / Atividade</label>
+            <label for="taskName" id="lblTaskName">Produto / Atividade / Demanda</label>
             <input type="text" id="taskName" placeholder="Ex: ROT 2L CC MENOS ACUCAR" required>
           </div>
           <div class="form-group flex-1">
-            <label for="taskArea">Responsável</label>
-            <input type="text" id="taskArea" placeholder="Ex: Inspetor" required>
+            <label for="taskArea" id="lblTaskArea">Responsável</label>
+            <input type="text" id="taskArea" placeholder="Ex: Inspetor / Nome" required>
           </div>
-          <div class="form-group flex-1">
+          <div class="form-group flex-1" id="nfGroup">
             <label for="taskNF">Nota Fiscal (NF)</label>
             <input type="text" id="taskNF" placeholder="Ex: 72484">
           </div>
+          <div class="form-group flex-1" id="deadlineGroup" style="display: none;">
+            <label for="taskDeadline">Prazo da Atividade</label>
+            <input type="date" id="taskDeadline">
+          </div>
         </div>
 
-        <!-- ÁREA DO CHECKLIST DINÂMICO -->
         <div class="form-group mb-3">
-          <label>Itens de Verificação do Lote:</label>
+          <label>Itens de Verificação / Status Inicial:</label>
           <div id="checklistContainer" class="checklist-grid">
-            <!-- Gerado via JavaScript -->
-          </div>
+            </div>
         </div>
 
         <div class="form-row">
           <div class="form-group flex-1">
-            <label for="taskObs" id="lblObs">Observações / Pendência Inicial</label>
-            <input type="text" id="taskObs" placeholder="Ex: Falta laudo e romaneio">
+            <label for="taskObs" id="lblObs">Observações / Detalhes da Demanda</label>
+            <input type="text" id="taskObs" placeholder="Ex: Detalhes da tarefa ou pendência">
           </div>
         </div>
 
@@ -613,45 +689,41 @@
       </form>
     </div>
 
-    <!-- TABELA DE RESULTADOS -->
     <div class="table-card">
       <h3 id="tableTitle">📋 Todas as Pendências do Laboratório</h3>
       <div class="table-wrapper">
         <table>
           <thead>
             <tr>
-              <th>Origem / Categoria</th>
-              <th>Material / Atividade</th>
+              <th>Categoria</th>
+              <th>Atividade / Material</th>
               <th>Responsável</th>
-              <th>NF</th>
-              <th>Itens do Checklist</th>
+              <th>NF / Prazo</th>
+              <th>Checklist / Status</th>
               <th>Observações</th>
-              <th>Modificado por</th>
+              <th>Inclusão / Edição</th>
               <th>Status</th>
               <th>Ações</th>
             </tr>
           </thead>
           <tbody id="routineList">
-            <!-- Linhas renderizadas via JS -->
-          </tbody>
+            </tbody>
         </table>
       </div>
     </div>
 
   </div>
 
-  <!-- MODAL DE EDIÇÃO DO CHECKLIST -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-bottom: 15px; color: #1a365d;">✏️ Modificar Checklist / Pendências</h3>
+      <h3 style="margin-bottom: 15px; color: #1a365d;">✏️ Modificar Registro / Checklist</h3>
       <p id="modalMaterialTitle" style="margin-bottom: 15px; font-weight: bold; color: #4a5568;"></p>
       
       <div id="modalChecklistContainer" class="checklist-grid" style="grid-template-columns: 1fr;">
-        <!-- Gerado Dinamicamente -->
-      </div>
+        </div>
 
       <div class="form-group" style="margin-bottom: 20px;">
-        <label for="modalTaskObs">Atualizar Observações / Pendências:</label>
+        <label for="modalTaskObs">Atualizar Observações:</label>
         <input type="text" id="modalTaskObs">
       </div>
 
@@ -724,7 +796,7 @@
     });
 
     if (temPendenciaOuNok) {
-      lblObs.innerHTML = 'Observações / Detalhes da Pendência <span style="color:red;">* (Obrigatório)</span>';
+      lblObs.innerHTML = 'Observações / Detalhes <span style="color:red;">* (Obrigatório)</span>';
       taskObs.required = true;
     } else {
       lblObs.innerHTML = 'Observações / Detalhes (Opcional)';
@@ -737,7 +809,7 @@
     if (!item) return;
 
     window.activeModalDocId = id;
-    document.getElementById('modalMaterialTitle').innerText = `Material: ${item.title} (${item.tab})`;
+    document.getElementById('modalMaterialTitle').innerText = `Atividade/Material: ${item.title} (${item.tab})`;
     document.getElementById('modalTaskObs').value = item.obs || '';
 
     const container = document.getElementById('modalChecklistContainer');
@@ -766,7 +838,22 @@
   }
 
   function onCategoryChange() {
-    const cat = document.getElementById('taskCategory').value;
+    let cat = window.currentTab;
+    if (window.currentTab === 'Todas as Pendências') {
+      cat = document.getElementById('taskCategory').value;
+    }
+
+    const nfGroup = document.getElementById('nfGroup');
+    const deadlineGroup = document.getElementById('deadlineGroup');
+
+    if (cat === 'Demandas do Supervisor') {
+      if (nfGroup) nfGroup.style.display = 'none';
+      if (deadlineGroup) deadlineGroup.style.display = 'flex';
+    } else {
+      if (nfGroup) nfGroup.style.display = 'flex';
+      if (deadlineGroup) deadlineGroup.style.display = 'none';
+    }
+
     renderChecklistForm(cat);
   }
 
@@ -788,7 +875,7 @@
       categorySelectGroup.style.display = 'none';
       activeTabName.innerText = tabName;
       document.getElementById('tableTitle').innerText = `Registros de ${tabName}`;
-      renderChecklistForm(tabName);
+      onCategoryChange();
     }
 
     renderRoutines();
@@ -797,6 +884,7 @@
   function updateDashboard() {
     const list = window.routines || [];
     document.getElementById('totalPendencias').innerText = list.filter(r => r.status === 'pendente').length;
+    document.getElementById('totalDemandas').innerText = list.filter(r => r.tab === 'Demandas do Supervisor' && r.status === 'pendente').length;
     document.getElementById('totalSegregados').innerText = list.filter(r => r.tab === 'MP Não Conforme' && r.status === 'pendente').length;
     document.getElementById('totalValidados').innerText = list.filter(r => r.status === 'concluido').length;
     document.getElementById('totalHoje').innerText = list.length;
@@ -832,15 +920,35 @@
         }).join(' ');
       }
 
+      // Tratamento de datas
+      const createdAtStr = item.createdAt || window.formatDateTime(item.timestamp);
+      const modifiedAtStr = item.modifiedAt || createdAtStr;
+      const timeAgo = window.getTimeAgo(item.timestamp);
+
+      // Tratamento NF x Prazo
+      let nfOrDeadline = item.nf;
+      if (item.tab === 'Demandas do Supervisor' && item.deadline && item.deadline !== '-') {
+        const dParts = item.deadline.split('-');
+        if (dParts.length === 3) {
+          nfOrDeadline = `📅 Prazo: ${dParts[2]}/${dParts[1]}/${dParts[0].slice(-2)}`;
+        } else {
+          nfOrDeadline = `📅 Prazo: ${item.deadline}`;
+        }
+      }
+
       return `
         <tr>
           <td><span class="tab-tag">${item.tab}</span></td>
           <td><strong>${item.title}</strong></td>
           <td>${item.area}</td>
-          <td>${item.nf}</td>
-          <td style="max-width: 250px;">${checklistChips || '-'}</td>
+          <td>${nfOrDeadline}</td>
+          <td style="max-width: 230px;">${checklistChips || '-'}</td>
           <td>${item.obs}</td>
-          <td>${item.createdBy} <br><small style="color:#718096;">${item.createdAt}</small></td>
+          <td>
+            <div style="font-size:11px; color:#2b6cb0;"><strong>Inc:</strong> ${createdAtStr}</div>
+            <div style="font-size:11px; color:#4a5568;"><strong>Alt:</strong> ${modifiedAtStr} por ${item.createdBy}</div>
+            <span class="time-tracker">⏱️ ${timeAgo}</span>
+          </td>
           <td>
             <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
               ${item.status === 'concluido' ? 'Concluído' : 'Pendente'}
