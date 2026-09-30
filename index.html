@@ -183,6 +183,26 @@
       color: #1a202c;
     }
 
+    .tab-btn.tab-dashboard {
+      background: #bee3f8;
+      color: #2b6cb0;
+    }
+
+    .tab-btn.tab-dashboard.active {
+      background: #3182ce;
+      color: #ffffff;
+    }
+
+    .tab-btn.tab-cadastro {
+      background: #c6f6d5;
+      color: #22543d;
+    }
+
+    .tab-btn.tab-cadastro.active {
+      background: #38a169;
+      color: #ffffff;
+    }
+
     .tab-btn.tab-all-pending {
       background: #feebc8;
       color: #c05621;
@@ -200,6 +220,16 @@
 
     .tab-btn.tab-demandas.active {
       background: #805ad5;
+      color: #ffffff;
+    }
+
+    .tab-btn.tab-mp-nok {
+      background: #fed7d7;
+      color: #9b2c2c;
+    }
+
+    .tab-btn.tab-mp-nok.active {
+      background: #e53e3e;
       color: #ffffff;
     }
 
@@ -443,7 +473,7 @@
     const routinesCollection = collection(db, "rotinas");
 
     window.routines = [];
-    window.currentTab = 'Todas as Pendências';
+    window.currentTab = 'Dashboard';
     window.activeModalDocId = null;
 
     // ITENS DE VERIFICAÇÃO POR CATEGORIA
@@ -519,11 +549,7 @@
       const taskNF = document.getElementById('taskNF').value;
       const taskObs = document.getElementById('taskObs').value;
       const taskDeadline = document.getElementById('taskDeadline') ? document.getElementById('taskDeadline').value : '';
-      
-      let targetTab = window.currentTab;
-      if (window.currentTab === 'Todas as Pendências') {
-        targetTab = document.getElementById('taskCategory').value;
-      }
+      const targetTab = document.getElementById('taskCategory').value;
 
       const userSelect = document.getElementById('currentUser');
       const userName = userSelect.options[userSelect.selectedIndex].text.trim();
@@ -564,6 +590,7 @@
         if (document.getElementById('taskDeadline')) document.getElementById('taskDeadline').value = '';
         
         renderChecklistForm(targetTab);
+        alert("✅ Registro cadastrado com sucesso!");
 
       } catch (err) {
         alert("Erro ao salvar no banco online: " + err.message);
@@ -682,75 +709,60 @@
 
   <div class="main-container">
 
-    <!-- PAINEL DE METRICAS DE SLA E ATRASOS -->
-    <div class="sla-dashboard">
-      <div class="card card-alert">
-        <span class="card-title">⚠️ ITENS ATRASADOS (>24H PARADOS)</span>
-        <span class="card-value" id="slaOverdueCount" style="color: #c53030;">0</span>
-        <span class="card-subtitle">Entradas pendentes há mais de 1 dia útil</span>
-      </div>
-      <div class="card card-timer">
-        <span class="card-title">🐢 MAIOR TEMPO PARADO COM PENDÊNCIA</span>
-        <span class="card-value" id="oldestPendingTime" style="font-size: 20px; color: #dd6b20;">Nenhuma</span>
-        <span class="card-subtitle" id="oldestPendingItem">Nenhum item travado</span>
-      </div>
-    </div>
-
-    <!-- DASHBOARD DE VOLUMETRIA -->
-    <div class="dashboard-cards">
-      <div class="card card-orange">
-        <span class="card-title">TOTAL PENDÊNCIAS</span>
-        <span class="card-value" id="totalPendencias">0</span>
-      </div>
-      <div class="card card-purple">
-        <span class="card-title">DEMANDAS SUPERVISOR</span>
-        <span class="card-value" id="totalDemandas">0</span>
-      </div>
-      <div class="card card-red">
-        <span class="card-title">MP NÃO CONFORME</span>
-        <span class="card-value" id="totalSegregados">0</span>
-      </div>
-      <div class="card card-green">
-        <span class="card-title">ITENS CONCLUÍDOS</span>
-        <span class="card-value" id="totalValidados">0</span>
-      </div>
-      <div class="card card-blue">
-        <span class="card-title">TOTAL REGISTROS</span>
-        <span class="card-value" id="totalHoje">0</span>
-      </div>
-    </div>
-
-    <!-- SEÇÃO DE FILTROS DE BUSCA -->
-    <div class="filter-card">
-      <h4>🔎 Filtros de Consulta:</h4>
-      <div class="filter-group">
-        <label for="filterInspector">Inspetor / Responsável:</label>
-        <select id="filterInspector" onchange="renderRoutines()">
-          <option value="">Todos os Responsáveis</option>
-        </select>
-      </div>
-      <div class="filter-group">
-        <label for="filterInsumo">Insumo / Descrição:</label>
-        <input type="text" id="filterInsumo" placeholder="Ex: Rótulo 2L, Tambor, PET..." oninput="renderRoutines()">
-      </div>
-      <button class="btn-clear-filter" onclick="clearFilters()">🧹 Limpar Filtros</button>
-    </div>
-
-    <!-- ABAS DE NAVEGAÇÃO -->
+    <!-- ABAS DE NAVEGAÇÃO OTIMIZADAS -->
     <div class="tabs-bar">
-      <button class="tab-btn tab-all-pending active" onclick="switchTab('Todas as Pendências', this)">📋 Todas as Pendências</button>
+      <button class="tab-btn tab-dashboard active" onclick="switchTab('Dashboard', this)">📊 Dashboard</button>
+      <button class="tab-btn tab-cadastro" onclick="switchTab('Novo Lançamento', this)">➕ Novo Lançamento</button>
+      <button class="tab-btn tab-all-pending" onclick="switchTab('Todas as Pendências', this)">📋 Pendências Ativas</button>
       <button class="tab-btn tab-demandas" onclick="switchTab('Demandas do Supervisor', this)">🎯 Demandas do Supervisor</button>
-      <button class="tab-btn" onclick="switchTab('Rótulos', this)">🏷️ Rótulos</button>
-      <button class="tab-btn" onclick="switchTab('Pré-formas', this)">🍼 Pré-formas</button>
-      <button class="tab-btn" onclick="switchTab('Material Auxiliar', this)">📦 Material Auxiliar</button>
-      <button class="tab-btn" onclick="switchTab('MP Não Conforme', this)">🚨 MP Não Conforme</button>
+      <button class="tab-btn tab-mp-nok" onclick="switchTab('MP Não Conforme', this)">🚨 MP Não Conforme</button>
     </div>
 
-    <!-- FORMULÁRIO DE CADASTRO -->
-    <div class="form-card" id="formContainer">
+    <!-- ÁREA DO DASHBOARD (EXIBIDA NA ABA DASHBOARD) -->
+    <div id="dashboardSection">
+      <!-- PAINEL DE METRICAS DE SLA E ATRASOS -->
+      <div class="sla-dashboard">
+        <div class="card card-alert">
+          <span class="card-title">⚠️ ITENS ATRASADOS (>24H PARADOS)</span>
+          <span class="card-value" id="slaOverdueCount" style="color: #c53030;">0</span>
+          <span class="card-subtitle">Entradas pendentes há mais de 1 dia útil</span>
+        </div>
+        <div class="card card-timer">
+          <span class="card-title">🐢 MAIOR TEMPO PARADO COM PENDÊNCIA</span>
+          <span class="card-value" id="oldestPendingTime" style="font-size: 20px; color: #dd6b20;">Nenhuma</span>
+          <span class="card-subtitle" id="oldestPendingItem">Nenhum item travado</span>
+        </div>
+      </div>
+
+      <!-- DASHBOARD DE VOLUMETRIA -->
+      <div class="dashboard-cards">
+        <div class="card card-orange">
+          <span class="card-title">TOTAL PENDÊNCIAS</span>
+          <span class="card-value" id="totalPendencias">0</span>
+        </div>
+        <div class="card card-purple">
+          <span class="card-title">DEMANDAS SUPERVISOR</span>
+          <span class="card-value" id="totalDemandas">0</span>
+        </div>
+        <div class="card card-red">
+          <span class="card-title">MP NÃO CONFORME</span>
+          <span class="card-value" id="totalSegregados">0</span>
+        </div>
+        <div class="card card-green">
+          <span class="card-title">ITENS CONCLUÍDOS</span>
+          <span class="card-value" id="totalValidados">0</span>
+        </div>
+        <div class="card card-blue">
+          <span class="card-title">TOTAL REGISTROS</span>
+          <span class="card-value" id="totalHoje">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FORMULÁRIO DE CADASTRO (ABA NOVO LANÇAMENTO) -->
+    <div class="form-card" id="formContainer" style="display: none;">
       <div class="form-header">
         <h3>➕ Cadastrar Novo Lote / Entrada / Demanda</h3>
-        <span>Aba de Destino: <strong id="activeTabName">Seleção Manual</strong></span>
       </div>
       
       <form id="routineForm" onsubmit="addRoutine(event)">
@@ -804,9 +816,25 @@
       </form>
     </div>
 
+    <!-- SEÇÃO DE FILTROS DE BUSCA (EXIBIDA NAS ABAS DE CONSULTA/TABELA) -->
+    <div class="filter-card" id="filterCard">
+      <h4>🔎 Filtros de Consulta:</h4>
+      <div class="filter-group">
+        <label for="filterInspector">Inspetor / Responsável:</label>
+        <select id="filterInspector" onchange="renderRoutines()">
+          <option value="">Todos os Responsáveis</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filterInsumo">Insumo / Descrição:</label>
+        <input type="text" id="filterInsumo" placeholder="Ex: Rótulo 2L, Tambor, PET..." oninput="renderRoutines()">
+      </div>
+      <button class="btn-clear-filter" onclick="clearFilters()">🧹 Limpar Filtros</button>
+    </div>
+
     <!-- TABELA DE RESULTADOS -->
-    <div class="table-card">
-      <h3 id="tableTitle">📋 Todas as Pendências do Laboratório</h3>
+    <div class="table-card" id="tableCard">
+      <h3 id="tableTitle">📋 Visão Geral de Registros</h3>
       <div class="table-wrapper">
         <table>
           <thead>
@@ -1006,11 +1034,7 @@
   }
 
   function onCategoryChange() {
-    let cat = window.currentTab;
-    if (window.currentTab === 'Todas as Pendências') {
-      cat = document.getElementById('taskCategory').value;
-    }
-
+    const cat = document.getElementById('taskCategory').value;
     const nfGroup = document.getElementById('nfGroup');
     const deadlineGroup = document.getElementById('deadlineGroup');
 
@@ -1031,19 +1055,35 @@
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 
-    const categorySelectGroup = document.getElementById('categorySelectGroup');
-    const activeTabName = document.getElementById('activeTabName');
+    const dashboardSection = document.getElementById('dashboardSection');
+    const formContainer = document.getElementById('formContainer');
+    const filterCard = document.getElementById('filterCard');
+    const tableCard = document.getElementById('tableCard');
+    const tableTitle = document.getElementById('tableTitle');
 
-    if (window.currentTab === 'Todas as Pendências') {
-      categorySelectGroup.style.display = 'block';
-      activeTabName.innerText = 'Seleção Manual';
-      document.getElementById('tableTitle').innerText = '📋 Todas as Pendências do Laboratório';
+    if (tabName === 'Dashboard') {
+      dashboardSection.style.display = 'block';
+      formContainer.style.display = 'none';
+      filterCard.style.display = 'flex';
+      tableCard.style.display = 'block';
+      tableTitle.innerText = '📋 Visão Geral de Registros';
+    } else if (tabName === 'Novo Lançamento') {
+      dashboardSection.style.display = 'none';
+      formContainer.style.display = 'block';
+      filterCard.style.display = 'none';
+      tableCard.style.display = 'none';
       onCategoryChange();
     } else {
-      categorySelectGroup.style.display = 'none';
-      activeTabName.innerText = tabName;
-      document.getElementById('tableTitle').innerText = `Registros de ${tabName}`;
-      onCategoryChange();
+      dashboardSection.style.display = 'none';
+      formContainer.style.display = 'none';
+      filterCard.style.display = 'flex';
+      tableCard.style.display = 'block';
+
+      if (tabName === 'Todas as Pendências') {
+        tableTitle.innerText = '📋 Todas as Pendências Ativas';
+      } else {
+        tableTitle.innerText = `Registros de ${tabName}`;
+      }
     }
 
     renderRoutines();
@@ -1088,8 +1128,12 @@
 
     let filtered = [];
 
-    if (window.currentTab === 'Todas as Pendências') {
+    if (window.currentTab === 'Dashboard') {
+      filtered = [...list];
+    } else if (window.currentTab === 'Todas as Pendências') {
       filtered = list.filter(r => r.status === 'pendente');
+    } else if (window.currentTab === 'Novo Lançamento') {
+      return; // Tabela não é renderizada nesta aba
     } else {
       filtered = list.filter(r => r.tab === window.currentTab);
     }
