@@ -50,17 +50,6 @@
       outline: none;
     }
 
-    .badge {
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 11px;
-      font-weight: bold;
-      color: white;
-    }
-
-    .can-delete { background-color: #2e7d32; }
-    .cannot-delete { background-color: #d32f2f; }
-
     /* CONTAINER PRINCIPAL */
     .main-container {
       max-width: 1450px;
@@ -295,6 +284,7 @@
 
     .select-ok { background-color: #d4edda; color: #155724; border-color: #c3e6cb; }
     .select-pendencia { background-color: #fff3cd; color: #856404; border-color: #ffeeba; }
+    .select-andamento { background-color: #ebf8ff; color: #2b6cb0; border-color: #bee3f8; }
     .select-nok { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
 
     .form-actions {
@@ -469,10 +459,11 @@
       ],
       "Material Auxiliar": [
         "Laudo Verificado", "Lançamento no SAP", "DU", 
-        "Planilha de Recebimento", "Laudo Salvo na pasta/Excel"
+        "Laudo Salvo na pasta/Excel"
       ],
       "MP Não Conforme": [
-        "Identificação Segregada", "Aviso à Qualidade", "Laudo e Evidências Anexados"
+        "Identificação Segregada", "Fornecedor Avisado", "Laudo e Evidências Anexados", 
+        "Resposta do Fornecedor", "Documentos anexos ao EXCEL"
       ],
       "Demandas do Supervisor": [
         "Acompanhamento de Tarefa", "Evidência / Validação"
@@ -535,7 +526,7 @@
       }
 
       const userSelect = document.getElementById('currentUser');
-      const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+      const userName = userSelect.options[userSelect.selectedIndex].text.trim();
 
       const checklistData = {};
       const itemsList = window.CONFIG_CATEGORIAS[targetTab] || [];
@@ -579,7 +570,7 @@
       }
     };
 
-    // GUARDAR ALTERAÇÕES DO CHECKLIST NO MODAL
+    // GUARDAR ALTERAÇÕES DO CHECKLIST E RESPONSÁVEL NO MODAL
     window.saveChecklistEdit = async function() {
       if (!window.activeModalDocId) return;
 
@@ -598,10 +589,22 @@
       });
 
       const updatedObs = document.getElementById('modalTaskObs').value;
-      const temPendencia = Object.values(updatedChecklist).some(val => val === 'PENDÊNCIA' || val === 'NOK');
+      const updatedArea = document.getElementById('modalTaskArea').value;
+      
+      // Validação do status de conclusão
+      let temPendencia = false;
+      if (itemFind.tab === 'Demandas do Supervisor') {
+        const taskStatus = updatedChecklist["Acompanhamento de Tarefa"];
+        const evidenceStatus = updatedChecklist["Evidência / Validação"];
+        if (taskStatus !== 'CONCLUÍDO' || evidenceStatus !== 'OK') {
+          temPendencia = true;
+        }
+      } else {
+        temPendencia = Object.values(updatedChecklist).some(val => val === 'PENDÊNCIA' || val === 'NOK');
+      }
       
       const userSelect = document.getElementById('currentUser');
-      const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+      const userName = userSelect.options[userSelect.selectedIndex].text.trim();
 
       const now = Date.now();
       const formattedNow = window.formatDateTime(now);
@@ -610,6 +613,7 @@
         await updateDoc(docRef, {
           checklist: updatedChecklist,
           obs: updatedObs,
+          area: updatedArea || itemFind.area,
           status: temPendencia ? 'pendente' : 'concluido',
           lastModifiedBy: userName,
           modifiedAt: formattedNow,
@@ -629,7 +633,7 @@
       const formattedNow = window.formatDateTime(now);
 
       const userSelect = document.getElementById('currentUser');
-      const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
+      const userName = userSelect.options[userSelect.selectedIndex].text.trim();
 
       await updateDoc(docRef, { 
         status: newStatus,
@@ -666,20 +670,19 @@
     <div class="user-control">
       <label for="currentUser">Usuário Ativo:</label>
       <select id="currentUser" onchange="updateUserPermissions()">
-        <option value="supervisor" data-can-delete="true">Supervisor Dimas</option>
-        <option value="senior1" data-can-delete="true">Cledison Sênior 1 </option>
-        <option value="senior2" data-can-delete="true">Shaienne Sênior 2 </option>
-        <option value="inspetor1" data-can-delete="false">Raimundo Inspetor 1 </option>
-        <option value="inspetor2" data-can-delete="false">Marciane Inspetor 2 </option>
-        <option value="inspetor3" data-can-delete="false">Paulo Inspetor 3 </option>
+        <option value="supervisor" data-can-delete="true">Dimas</option>
+        <option value="senior1" data-can-delete="true">Cledison</option>
+        <option value="senior2" data-can-delete="true">Shaienne</option>
+        <option value="inspetor1" data-can-delete="false">Raimundo</option>
+        <option value="inspetor2" data-can-delete="false">Marciane</option>
+        <option value="inspetor3" data-can-delete="false">Paulo</option>
       </select>
-      <span id="permissionStatus" class="badge"></span>
     </div>
   </header>
 
   <div class="main-container">
 
-    <!-- NOVO PAINEL DE METRICAS DE SLA E ATRASOS -->
+    <!-- PAINEL DE METRICAS DE SLA E ATRASOS -->
     <div class="sla-dashboard">
       <div class="card card-alert">
         <span class="card-title">⚠️ ITENS ATRASADOS (>24H PARADOS)</span>
@@ -757,8 +760,8 @@
             <select id="taskCategory" onchange="onCategoryChange()">
               <option value="Rótulos">🏷️ Rótulos (11 Itens)</option>
               <option value="Pré-formas">🍼 Pré-formas (6 Itens)</option>
-              <option value="Material Auxiliar">📦 Material Auxiliar (5 Itens)</option>
-              <option value="MP Não Conforme">🚨 MP Não Conforme</option>
+              <option value="Material Auxiliar">📦 Material Auxiliar (4 Itens)</option>
+              <option value="MP Não Conforme">🚨 MP Não Conforme (5 Itens)</option>
               <option value="Demandas do Supervisor">🎯 Demandas do Supervisor</option>
             </select>
           </div>
@@ -828,12 +831,17 @@
 
   </div>
 
-  <!-- MODAL DE EDIÇÃO DO CHECKLIST -->
+  <!-- MODAL DE EDIÇÃO DO CHECKLIST E RESPONSÁVEL -->
   <div id="editModal" class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-bottom: 15px; color: #1a365d;">✏️ Modificar Registro / Checklist</h3>
+      <h3 style="margin-bottom: 15px; color: #1a365d;">✏️️ Modificar Registro / Responsável</h3>
       <p id="modalMaterialTitle" style="margin-bottom: 15px; font-weight: bold; color: #4a5568;"></p>
       
+      <div class="form-group" style="margin-bottom: 15px;">
+        <label for="modalTaskArea">Alterar Responsável / Inspetor:</label>
+        <input type="text" id="modalTaskArea" placeholder="Ex: Marciane / Raimundo" required>
+      </div>
+
       <div id="modalChecklistContainer" class="checklist-grid" style="grid-template-columns: 1fr;">
         <!-- Gerado Dinamicamente -->
       </div>
@@ -852,18 +860,6 @@
 
 <script>
   function updateUserPermissions() {
-    const select = document.getElementById('currentUser');
-    const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
-    
-    const badge = document.getElementById('permissionStatus');
-    if (canDelete) {
-      badge.textContent = "PODE EXCLUIR";
-      badge.className = "badge can-delete";
-    } else {
-      badge.textContent = "APENAS LEITURA";
-      badge.className = "badge cannot-delete";
-    }
-
     renderRoutines();
   }
 
@@ -872,7 +868,6 @@
     const currentVal = select.value;
     const list = window.routines || [];
     
-    // Obter lista única de responsáveis registrados
     const inspectors = [...new Set(list.map(item => item.area).filter(Boolean))].sort();
 
     select.innerHTML = '<option value="">Todos os Responsáveis</option>';
@@ -900,16 +895,31 @@
       return;
     }
 
-    container.innerHTML = items.map((item, idx) => `
-      <div class="checklist-item">
-        <label>${item}</label>
-        <select id="check_item_${idx}" class="select-pendencia" onchange="evalChecklistStyles()">
-          <option value="PENDÊNCIA" class="select-pendencia">PENDÊNCIA</option>
-          <option value="OK" class="select-ok">OK</option>
-          <option value="NOK" class="select-nok">NOK</option>
-        </select>
-      </div>
-    `).join('');
+    container.innerHTML = items.map((item, idx) => {
+      if (categoria === 'Demandas do Supervisor' && item === 'Acompanhamento de Tarefa') {
+        return `
+          <div class="checklist-item">
+            <label>${item}</label>
+            <select id="check_item_${idx}" class="select-pendencia" onchange="evalChecklistStyles()">
+              <option value="PENDENTE" class="select-pendencia">PENDENTE</option>
+              <option value="EM ANDAMENTO" class="select-andamento">EM ANDAMENTO</option>
+              <option value="CONCLUÍDO" class="select-ok">CONCLUÍDO</option>
+            </select>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="checklist-item">
+          <label>${item}</label>
+          <select id="check_item_${idx}" class="select-pendencia" onchange="evalChecklistStyles()">
+            <option value="PENDÊNCIA" class="select-pendencia">PENDÊNCIA</option>
+            <option value="OK" class="select-ok">OK</option>
+            <option value="NOK" class="select-nok">NOK</option>
+          </select>
+        </div>
+      `;
+    }).join('');
 
     evalChecklistStyles();
   }
@@ -924,10 +934,13 @@
 
     selects.forEach(sel => {
       sel.className = '';
-      if (sel.value === 'OK') {
+      if (sel.value === 'OK' || sel.value === 'CONCLUÍDO') {
         sel.classList.add('select-ok');
-      } else if (sel.value === 'PENDÊNCIA') {
+      } else if (sel.value === 'PENDÊNCIA' || sel.value === 'PENDENTE') {
         sel.classList.add('select-pendencia');
+        temPendenciaOuNok = true;
+      } else if (sel.value === 'EM ANDAMENTO') {
+        sel.classList.add('select-andamento');
         temPendenciaOuNok = true;
       } else if (sel.value === 'NOK') {
         sel.classList.add('select-nok');
@@ -951,16 +964,31 @@
     window.activeModalDocId = id;
     document.getElementById('modalMaterialTitle').innerText = `Atividade/Material: ${item.title} (${item.tab})`;
     document.getElementById('modalTaskObs').value = item.obs || '';
+    document.getElementById('modalTaskArea').value = item.area || '';
 
     const container = document.getElementById('modalChecklistContainer');
     const itemsList = window.CONFIG_CATEGORIAS[item.tab] || [];
 
     container.innerHTML = itemsList.map((checkName, idx) => {
-      const currentVal = (item.checklist && item.checklist[checkName]) ? item.checklist[checkName] : 'PENDÊNCIA';
+      const currentVal = (item.checklist && item.checklist[checkName]) ? item.checklist[checkName] : 'PENDENTE';
+      
+      if (item.tab === 'Demandas do Supervisor' && checkName === 'Acompanhamento de Tarefa') {
+        return `
+          <div class="checklist-item" style="flex-direction: row; justify-content: space-between; align-items: center;">
+            <label style="font-size: 13px;">${checkName}:</label>
+            <select id="modal_check_item_${idx}" style="width: 160px;">
+              <option value="PENDENTE" ${currentVal === 'PENDENTE' ? 'selected' : ''}>PENDENTE</option>
+              <option value="EM ANDAMENTO" ${currentVal === 'EM ANDAMENTO' ? 'selected' : ''}>EM ANDAMENTO</option>
+              <option value="CONCLUÍDO" ${currentVal === 'CONCLUÍDO' ? 'selected' : ''}>CONCLUÍDO</option>
+            </select>
+          </div>
+        `;
+      }
+
       return `
         <div class="checklist-item" style="flex-direction: row; justify-content: space-between; align-items: center;">
           <label style="font-size: 13px;">${checkName}:</label>
-          <select id="modal_check_item_${idx}" style="width: 150px;">
+          <select id="modal_check_item_${idx}" style="width: 160px;">
             <option value="OK" ${currentVal === 'OK' ? 'selected' : ''}>OK</option>
             <option value="PENDÊNCIA" ${currentVal === 'PENDÊNCIA' ? 'selected' : ''}>PENDÊNCIA</option>
             <option value="NOK" ${currentVal === 'NOK' ? 'selected' : ''}>NOK</option>
@@ -1027,20 +1055,16 @@
     const now = Date.now();
     const oneDayMs = 24 * 60 * 60 * 1000;
 
-    // Métricas Básicas
     document.getElementById('totalPendencias').innerText = pendingList.length;
     document.getElementById('totalDemandas').innerText = list.filter(r => r.tab === 'Demandas do Supervisor' && r.status === 'pendente').length;
     document.getElementById('totalSegregados').innerText = list.filter(r => r.tab === 'MP Não Conforme' && r.status === 'pendente').length;
     document.getElementById('totalValidados').innerText = list.filter(r => r.status === 'concluido').length;
     document.getElementById('totalHoje').innerText = list.length;
 
-    // Métricas de SLA / Atrasos
     const overdueItems = pendingList.filter(r => (now - r.timestamp) > oneDayMs);
     document.getElementById('slaOverdueCount').innerText = overdueItems.length;
 
-    // Insumo Mais Antigo Parado
     if (pendingList.length > 0) {
-      // Ordena do mais antigo para o mais recente
       const sortedPending = [...pendingList].sort((a, b) => a.timestamp - b.timestamp);
       const oldest = sortedPending[0];
       
@@ -1059,25 +1083,21 @@
     const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
     const list = window.routines || [];
 
-    // Capturar Filtros
     const inspectorFilter = document.getElementById('filterInspector').value.toLowerCase();
     const insumoFilter = document.getElementById('filterInsumo').value.toLowerCase();
 
     let filtered = [];
 
-    // 1. Filtrar por Aba
     if (window.currentTab === 'Todas as Pendências') {
       filtered = list.filter(r => r.status === 'pendente');
     } else {
       filtered = list.filter(r => r.tab === window.currentTab);
     }
 
-    // 2. Aplicar Filtro de Inspetor/Responsável
     if (inspectorFilter) {
       filtered = filtered.filter(r => r.area && r.area.toLowerCase().includes(inspectorFilter));
     }
 
-    // 3. Aplicar Filtro de Insumo / Descrição
     if (insumoFilter) {
       filtered = filtered.filter(r => 
         (r.title && r.title.toLowerCase().includes(insumoFilter)) || 
@@ -1099,20 +1119,19 @@
       if (item.checklist && Object.keys(item.checklist).length > 0) {
         checklistChips = Object.entries(item.checklist).map(([k, v]) => {
           let bg = '#fff3cd'; let color = '#856404';
-          if (v === 'OK') { bg = '#d4edda'; color = '#155724'; }
+          if (v === 'OK' || v === 'CONCLUÍDO') { bg = '#d4edda'; color = '#155724'; }
+          if (v === 'EM ANDAMENTO') { bg = '#ebf8ff'; color = '#2b6cb0'; }
           if (v === 'NOK') { bg = '#f8d7da'; color = '#721c24'; }
           return `<span class="item-chip" style="background:${bg}; color:${color};">${k}: ${v}</span>`;
         }).join(' ');
       }
 
-      // Tratamento de datas e SLA
       const createdAtStr = item.createdAt || window.formatDateTime(item.timestamp);
       const modifiedAtStr = item.modifiedAt || createdAtStr;
       const lastUser = item.lastModifiedBy || item.createdBy;
       const timeAgo = window.getTimeAgo(item.timestamp);
       const isOverdue = item.status === 'pendente' && (now - item.timestamp) > oneDayMs;
 
-      // Tratamento NF x Prazo
       let nfOrDeadline = item.nf;
       if (item.tab === 'Demandas do Supervisor' && item.deadline && item.deadline !== '-') {
         const dParts = item.deadline.split('-');
