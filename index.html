@@ -68,10 +68,18 @@
       padding: 0 20px;
     }
 
-    /* CARDS DO DASHBOARD */
+    /* CARDS DO DASHBOARD DE VOLUMETRIA */
     .dashboard-cards {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    /* PAINEL ESPECIAL DE SLA E GARGALOS */
+    .sla-dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 15px;
       margin-bottom: 20px;
     }
@@ -92,6 +100,8 @@
     .card-green { border-left-color: #38a169; }
     .card-blue { border-left-color: #3182ce; }
     .card-purple { border-left-color: #805ad5; }
+    .card-alert { border-left-color: #c53030; background-color: #fff5f5; }
+    .card-timer { border-left-color: #dd6b20; background-color: #fffaf0; }
 
     .card-title {
       font-size: 11px;
@@ -104,6 +114,60 @@
       font-size: 26px;
       font-weight: bold;
       color: #2d3748;
+    }
+
+    .card-subtitle {
+      font-size: 12px;
+      color: #718096;
+    }
+
+    /* SEÇÃO DE FILTROS */
+    .filter-card {
+      background: #fff;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      margin-bottom: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-card h4 {
+      color: #1a365d;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-group label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #4a5568;
+    }
+
+    .filter-group input, .filter-group select {
+      padding: 6px 12px;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .btn-clear-filter {
+      background: #e2e8f0;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: bold;
+      color: #4a5568;
     }
 
     /* ABAS DE NAVEGAÇÃO */
@@ -304,6 +368,17 @@
     .status-pending { background-color: #feebc8; color: #c05621; }
     .status-completed { background-color: #c6f6d5; color: #22543d; }
 
+    .tag-delay {
+      display: inline-block;
+      background-color: #fed7d7;
+      color: #9b2c2c;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+
     .tab-tag {
       display: inline-block;
       background-color: #edf2f7;
@@ -413,6 +488,7 @@
       
       window.routines.sort((a, b) => b.timestamp - a.timestamp);
 
+      populateInspectorFilterOptions();
       updateDashboard();
       renderRoutines();
     });
@@ -461,7 +537,6 @@
       const userSelect = document.getElementById('currentUser');
       const userName = userSelect.options[userSelect.selectedIndex].text.split(' (')[0];
 
-      // Coletar status dos itens de verificação (Checklist)
       const checklistData = {};
       const itemsList = window.CONFIG_CATEGORIAS[targetTab] || [];
       itemsList.forEach((item, idx) => {
@@ -604,7 +679,21 @@
 
   <div class="main-container">
 
-    <!-- DASHBOARD DE CONTADORES -->
+    <!-- NOVO PAINEL DE METRICAS DE SLA E ATRASOS -->
+    <div class="sla-dashboard">
+      <div class="card card-alert">
+        <span class="card-title">⚠️ ITENS ATRASADOS (>24H PARADOS)</span>
+        <span class="card-value" id="slaOverdueCount" style="color: #c53030;">0</span>
+        <span class="card-subtitle">Entradas pendentes há mais de 1 dia útil</span>
+      </div>
+      <div class="card card-timer">
+        <span class="card-title">🐢 MAIOR TEMPO PARADO COM PENDÊNCIA</span>
+        <span class="card-value" id="oldestPendingTime" style="font-size: 20px; color: #dd6b20;">Nenhuma</span>
+        <span class="card-subtitle" id="oldestPendingItem">Nenhum item travado</span>
+      </div>
+    </div>
+
+    <!-- DASHBOARD DE VOLUMETRIA -->
     <div class="dashboard-cards">
       <div class="card card-orange">
         <span class="card-title">TOTAL PENDÊNCIAS</span>
@@ -626,6 +715,22 @@
         <span class="card-title">TOTAL REGISTROS</span>
         <span class="card-value" id="totalHoje">0</span>
       </div>
+    </div>
+
+    <!-- SEÇÃO DE FILTROS DE BUSCA -->
+    <div class="filter-card">
+      <h4>🔎 Filtros de Consulta:</h4>
+      <div class="filter-group">
+        <label for="filterInspector">Inspetor / Responsável:</label>
+        <select id="filterInspector" onchange="renderRoutines()">
+          <option value="">Todos os Responsáveis</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filterInsumo">Insumo / Descrição:</label>
+        <input type="text" id="filterInsumo" placeholder="Ex: Rótulo 2L, Tambor, PET..." oninput="renderRoutines()">
+      </div>
+      <button class="btn-clear-filter" onclick="clearFilters()">🧹 Limpar Filtros</button>
     </div>
 
     <!-- ABAS DE NAVEGAÇÃO -->
@@ -662,8 +767,8 @@
             <input type="text" id="taskName" placeholder="Ex: ROT 2L CC MENOS ACUCAR" required>
           </div>
           <div class="form-group flex-1">
-            <label for="taskArea" id="lblTaskArea">Responsável</label>
-            <input type="text" id="taskArea" placeholder="Ex: Inspetor / Nome" required>
+            <label for="taskArea" id="lblTaskArea">Responsável / Inspetor</label>
+            <input type="text" id="taskArea" placeholder="Ex: Marciane / Raimundo" required>
           </div>
           <div class="form-group flex-1" id="nfGroup">
             <label for="taskNF">Nota Fiscal (NF)</label>
@@ -759,6 +864,30 @@
       badge.className = "badge cannot-delete";
     }
 
+    renderRoutines();
+  }
+
+  function populateInspectorFilterOptions() {
+    const select = document.getElementById('filterInspector');
+    const currentVal = select.value;
+    const list = window.routines || [];
+    
+    // Obter lista única de responsáveis registrados
+    const inspectors = [...new Set(list.map(item => item.area).filter(Boolean))].sort();
+
+    select.innerHTML = '<option value="">Todos os Responsáveis</option>';
+    inspectors.forEach(insp => {
+      const opt = document.createElement('option');
+      opt.value = insp;
+      opt.textContent = insp;
+      if (insp === currentVal) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  function clearFilters() {
+    document.getElementById('filterInspector').value = '';
+    document.getElementById('filterInsumo').value = '';
     renderRoutines();
   }
 
@@ -894,11 +1023,34 @@
 
   function updateDashboard() {
     const list = window.routines || [];
-    document.getElementById('totalPendencias').innerText = list.filter(r => r.status === 'pendente').length;
+    const pendingList = list.filter(r => r.status === 'pendente');
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+
+    // Métricas Básicas
+    document.getElementById('totalPendencias').innerText = pendingList.length;
     document.getElementById('totalDemandas').innerText = list.filter(r => r.tab === 'Demandas do Supervisor' && r.status === 'pendente').length;
     document.getElementById('totalSegregados').innerText = list.filter(r => r.tab === 'MP Não Conforme' && r.status === 'pendente').length;
     document.getElementById('totalValidados').innerText = list.filter(r => r.status === 'concluido').length;
     document.getElementById('totalHoje').innerText = list.length;
+
+    // Métricas de SLA / Atrasos
+    const overdueItems = pendingList.filter(r => (now - r.timestamp) > oneDayMs);
+    document.getElementById('slaOverdueCount').innerText = overdueItems.length;
+
+    // Insumo Mais Antigo Parado
+    if (pendingList.length > 0) {
+      // Ordena do mais antigo para o mais recente
+      const sortedPending = [...pendingList].sort((a, b) => a.timestamp - b.timestamp);
+      const oldest = sortedPending[0];
+      
+      const timeAgoText = window.getTimeAgo(oldest.timestamp);
+      document.getElementById('oldestPendingTime').innerText = timeAgoText;
+      document.getElementById('oldestPendingItem').innerText = `${oldest.tab}: ${oldest.title}`;
+    } else {
+      document.getElementById('oldestPendingTime').innerText = "Nenhuma";
+      document.getElementById('oldestPendingItem').innerText = "Nenhum item travado";
+    }
   }
 
   function renderRoutines() {
@@ -907,18 +1059,40 @@
     const canDelete = select.options[select.selectedIndex].getAttribute('data-can-delete') === 'true';
     const list = window.routines || [];
 
+    // Capturar Filtros
+    const inspectorFilter = document.getElementById('filterInspector').value.toLowerCase();
+    const insumoFilter = document.getElementById('filterInsumo').value.toLowerCase();
+
     let filtered = [];
 
+    // 1. Filtrar por Aba
     if (window.currentTab === 'Todas as Pendências') {
       filtered = list.filter(r => r.status === 'pendente');
     } else {
       filtered = list.filter(r => r.tab === window.currentTab);
     }
 
+    // 2. Aplicar Filtro de Inspetor/Responsável
+    if (inspectorFilter) {
+      filtered = filtered.filter(r => r.area && r.area.toLowerCase().includes(inspectorFilter));
+    }
+
+    // 3. Aplicar Filtro de Insumo / Descrição
+    if (insumoFilter) {
+      filtered = filtered.filter(r => 
+        (r.title && r.title.toLowerCase().includes(insumoFilter)) || 
+        (r.obs && r.obs.toLowerCase().includes(insumoFilter)) ||
+        (r.nf && r.nf.toLowerCase().includes(insumoFilter))
+      );
+    }
+
     if (filtered.length === 0) {
-      listContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #888;">Nenhum registro encontrado nesta exibição.</td></tr>';
+      listContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #888;">Nenhum registro encontrado para os filtros aplicados.</td></tr>';
       return;
     }
+
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
 
     listContainer.innerHTML = filtered.map(item => {
       let checklistChips = '';
@@ -931,11 +1105,12 @@
         }).join(' ');
       }
 
-      // Tratamento de datas
+      // Tratamento de datas e SLA
       const createdAtStr = item.createdAt || window.formatDateTime(item.timestamp);
       const modifiedAtStr = item.modifiedAt || createdAtStr;
       const lastUser = item.lastModifiedBy || item.createdBy;
       const timeAgo = window.getTimeAgo(item.timestamp);
+      const isOverdue = item.status === 'pendente' && (now - item.timestamp) > oneDayMs;
 
       // Tratamento NF x Prazo
       let nfOrDeadline = item.nf;
@@ -960,6 +1135,7 @@
             <div style="font-size:11px; color:#2b6cb0;"><strong>Cadastrado em:</strong> ${createdAtStr} (${item.createdBy})</div>
             <div style="font-size:11px; color:#4a5568;"><strong>Editado em:</strong> ${modifiedAtStr} (${lastUser})</div>
             <span class="time-tracker">⏱️ Cadastrado ${timeAgo}</span>
+            ${isOverdue ? '<br><span class="tag-delay">⚠️ ATRASADO (>24h)</span>' : ''}
           </td>
           <td>
             <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
