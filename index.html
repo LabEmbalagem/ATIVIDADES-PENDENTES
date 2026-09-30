@@ -1343,7 +1343,7 @@
             <div style="font-size:11px; color:#2b6cb0;"><strong>Cadastrado em:</strong> ${createdAtStr} (${item.createdBy})</div>
             <div style="font-size:11px; color:#4a5568;"><strong>Editado em:</strong> ${modifiedAtStr} (${lastUser})</div>
             <span class="time-tracker">⏱️ Cadastrado ${timeAgo}</span>
-            ${isOverdue ? '<br><span class="tag-delay">⚠️ ATRASADO (>24h)</span>' : ''}
+            ${isOverdue ? '<br><span class="tag-delay">⚠️ ATRASADO (>48h)</span>' : ''}
           </td>
           <td>
             <span class="status-badge ${item.status === 'concluido' ? 'status-completed' : 'status-pending'}">
