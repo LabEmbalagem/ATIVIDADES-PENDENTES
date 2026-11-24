@@ -566,11 +566,13 @@
       "Rótulos": [
         "Laudo Verificado", "Laudo anexado ao SAP", "Romaneio", "Dizeres", 
         "Blue/Koart", "Lançado no SAP", "Pasta Padrão", "DU", 
-        "Planilha de Recebimento", "FOTO no SAP", "Laudo salvo na pasta/Excel"
+        "Planilha de Recebimento", "FOTO no SAP", "Laudo salvo na pasta/Excel",
+        "Validade do insumo"
       ],
       "Pré-formas": [
         "Laudo Verificado", "Lançamento no SAP", "DU", 
-        "Planilha de Recebimento", "Laudo Salvo na pasta/Excel", "Laudo anexado ao SAP"
+        "Planilha de Recebimento", "Laudo Salvo na pasta/Excel", "Laudo anexado ao SAP",
+        "Validade do insumo"
       ],
       "Material Auxiliar": [
         "Laudo Verificado", "Lançamento no SAP", "DU", 
@@ -920,8 +922,8 @@
           <div class="form-group flex-1" id="categorySelectGroup">
             <label for="taskCategory">Categoria da Entrada</label>
             <select id="taskCategory" onchange="onCategoryChange()">
-              <option value="Rótulos">🏷️ Rótulos (11 Itens)</option>
-              <option value="Pré-formas">🍼 Pré-formas (6 Itens)</option>
+              <option value="Rótulos">🏷️ Rótulos (12 Itens)</option>
+              <option value="Pré-formas">🍼 Pré-formas (7 Itens)</option>
               <option value="Material Auxiliar">📦 Material Auxiliar (4 Itens)</option>
               <option value="MP Não Conforme">🚨 MP Não Conforme (5 Itens)</option>
               <option value="Demandas do Supervisor">🎯 Demandas do Supervisor</option>
@@ -1415,7 +1417,7 @@
     }
 
     if (filtered.length === 0) {
-      listContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #888;">Nenhum registro encontrado para os filtros applied.</td></tr>';
+      listContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #888;">Nenhum registro encontrado para os filtros aplicados.</td></tr>';
       return;
     }
 
